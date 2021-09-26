@@ -1,5 +1,13 @@
 package com.example.photogalleryapp;
 
+import static androidx.test.espresso.Espresso.onView;
+import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.action.ViewActions.closeSoftKeyboard;
+import static androidx.test.espresso.action.ViewActions.typeText;
+import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.withId;
+import static androidx.test.espresso.matcher.ViewMatchers.withText;
+
 import android.content.Context;
 
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -22,5 +30,21 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         assertEquals("com.example.photogalleryapp", appContext.getPackageName());
+    }
+
+    // Find a photo by a specific date range & keyword
+    public void searchByDate() {
+        onView(withId(R.id.button2)).perform(click());
+        onView(withId(R.id.startDate)).perform(typeText(""), closeSoftKeyboard());
+        onView(withId(R.id.endDate)).perform(typeText(""), closeSoftKeyboard());
+        onView(withId(R.id.editKeywordSearch)).perform(typeText("caption"), closeSoftKeyboard());
+        onView(withId(R.id.button5)).perform(click());
+        onView(withId(R.id.editTextCaption)).check(matches(withText("caption")));
+    }
+
+    // Move to next picture (move right) and go back to previous picture (left)
+    public void galleryNavigation() {
+        onView(withId(R.id.button2)).perform(click());
+        onView(withId(R.id.button3)).perform(click());
     }
 }
