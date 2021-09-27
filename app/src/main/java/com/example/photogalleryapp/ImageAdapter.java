@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -36,6 +37,9 @@ public class ImageAdapter extends PagerAdapter {
 
         ImageView imageView = (ImageView) itemView.findViewById(R.id.imageView);
         imageView.setImageResource(getImages[position]);
+
+        TextView textView = (TextView) itemView.findViewById(R.id.textView2);
+        textView.setText(imageView.getContentDescription());
         container.addView(itemView);
 
         return itemView;
