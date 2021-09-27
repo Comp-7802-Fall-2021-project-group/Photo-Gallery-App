@@ -1,30 +1,31 @@
 package com.example.photogalleryapp;
 
-import androidx.appcompat.app.AppCompatActivity;
-
+import android.app.Activity;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
-
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.appcompat.app.AppCompatActivity;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -36,7 +37,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        photos = findPhotos();
+        try {
+            photos = findPhotos();
+        } catch (ParseException e) {
+            Log.d("MainActivity", e.toString());
+        }
 
         if (photos.size() == 0) {
             displayPhoto(null);
@@ -58,13 +63,20 @@ public class MainActivity extends AppCompatActivity {
                     String endDate = data.getStringExtra("endDate");
                     String editKeywordSearch = data.getStringExtra("editKeywordSearch");
 
-                    // Debug log
-                    Log.d("startDate", startDate);
-                    Log.d("endDate", endDate);
-                    Log.d("editKeywordSearch", editKeywordSearch);
+                    try {
+                        photos = findPhotos(startDate, endDate, editKeywordSearch);
+                    } catch (ParseException e) {
+                        Log.d("MainActivity", e.toString());
+                    }
 
+                    if (photos.size() == 0) {
+                        displayPhoto(null);
+                    } else {
+                        displayPhoto(photos.get(index));
+                    }
                 }
             });
+
 
     // Navigate the user to the search view
     public void gotoSearch(View view) {
@@ -100,17 +112,39 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public ArrayList<String> findPhotos() {
+    public ArrayList<String> findPhotos() throws ParseException {
+        return findPhotos("", "", "");
+    }
+
+    public ArrayList<String> findPhotos(String startDate, String endDate, String editKeywordSearch) throws ParseException {
+        // create start date and end date if exist
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
+        Date start = null, end = null;
+        List<String> listKeyword;
+        if (!endDate.isEmpty()) end = formatter.parse(endDate);
+        if (!startDate.isEmpty()) start = formatter.parse(startDate);
+        if (!editKeywordSearch.isEmpty()) {
+            listKeyword = Arrays.asList(editKeywordSearch.split("\n"));
+        }
+
+        // load file list
         File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
         ArrayList<String> photos = new ArrayList<String>();
         File[] fList = file.listFiles();
+
+        //
         if (fList != null) {
             for (File f : fList) {
+                Date fDate = new Date(f.lastModified());
+                if (!startDate.isEmpty() && !fDate.after(start)) continue;
+                if (!endDate.isEmpty() && !fDate.before(end)) continue;
                 photos.add(f.getPath());
             }
         }
+
         return photos;
     }
+
 
     public void scrollPhotos(View v) {
         updatePhoto(photos.get(index), ((EditText) findViewById(R.id.editTextCaption)).getText().toString());
@@ -169,7 +203,11 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
             ImageView mImageView = (ImageView) findViewById(R.id.imageView2);
             mImageView.setImageBitmap(BitmapFactory.decodeFile(currentPhotoPath));
-            photos = findPhotos();
+            try {
+                photos = findPhotos();
+            } catch (ParseException e) {
+                Log.d("MainActivity", e.toString());
+            }
         }
     }
 
