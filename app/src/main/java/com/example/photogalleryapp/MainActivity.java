@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public ArrayList<String> findPhotos() {
-        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.myapplication/files/Pictures");
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
         ArrayList<String> photos = new ArrayList<String>();
         File[] fList = file.listFiles();
         if (fList != null) {
