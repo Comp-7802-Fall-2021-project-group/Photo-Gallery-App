@@ -35,7 +35,7 @@ public class ImageAdapter extends PagerAdapter {
     public Object instantiateItem(ViewGroup container, int position) {
         View itemView = mLayoutInflater.inflate(R.layout.activity_main, container, false);
 
-        ImageView imageView = (ImageView) itemView.findViewById(R.id.imageView);
+        ImageView imageView = (ImageView) itemView.findViewById(R.id.imageView2);
         imageView.setImageResource(getImages[position]);
 
         TextView textView = (TextView) itemView.findViewById(R.id.textView2);
