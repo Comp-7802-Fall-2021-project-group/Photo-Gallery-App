@@ -1,5 +1,7 @@
 package com.example.photogalleryapp;
 
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
@@ -20,6 +22,10 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.appcompat.app.AppCompatActivity;
+
 public class MainActivity extends AppCompatActivity {
     static final int REQUEST_IMAGE_CAPTURE = 1;
     String currentPhotoPath;
@@ -39,10 +45,31 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+
+    // You can do the assignment inside onAttach or onCreate, i.e, before the activity is displayed
+    ActivityResultLauncher<Intent> searchActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK) {
+                    Intent data = result.getData();
+
+                    // Retrieve intent's data
+                    String startDate = data.getStringExtra("startDate");
+                    String endDate = data.getStringExtra("endDate");
+                    String editKeywordSearch = data.getStringExtra("editKeywordSearch");
+
+                    // Debug log
+                    Log.d("startDate", startDate);
+                    Log.d("endDate", endDate);
+                    Log.d("editKeywordSearch", editKeywordSearch);
+
+                }
+            });
+
     // Navigate the user to the search view
     public void gotoSearch(View view) {
         Intent intent = new Intent(this, SearchActivity.class);
-        startActivity(intent);
+        searchActivityResultLauncher.launch(intent);
     }
 
     // Closes the search view and takes the user back to parent view (MainActivity)
