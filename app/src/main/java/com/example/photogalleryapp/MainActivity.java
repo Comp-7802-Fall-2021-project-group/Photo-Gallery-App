@@ -6,7 +6,11 @@ import androidx.viewpager.widget.ViewPager;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -21,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
         viewPager.setCurrentItem(imageAdapter.getCount() - 1);
 
         imageControl();
+        setCaption();
     }
 
     // Navigate the user to the search view
@@ -28,7 +33,6 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(this, SearchActivity.class);
         startActivity(intent);
     }
-
 
     public void imageControl() {
         final ViewPager viewPager = findViewById(R.id.viewPager);
@@ -48,6 +52,21 @@ public class MainActivity extends AppCompatActivity {
             int tab = viewPager.getCurrentItem();
             tab++;
             viewPager.setCurrentItem(tab);
+        });
+    }
+
+    public void setCaption() {
+        final ImageView imageView = findViewById(R.id.imageView);
+        final EditText editText = findViewById(R.id.imageCaption);
+        final TextView textView = findViewById(R.id.textView2);
+        editText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                final String input = editText.getText().toString();
+                imageView.setContentDescription(input);
+                textView.setText(input);
+                return true;
+            }
+            return false;
         });
     }
 }
