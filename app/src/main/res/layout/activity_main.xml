@@ -26,11 +26,11 @@
         android:adjustViewBounds="true"
         android:contentDescription="TODO"
         android:scaleType="centerInside"
+        android:text="TextView"
         app:layout_constraintEnd_toEndOf="@id/viewPager"
         app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="@id/viewPager"
-        app:layout_constraintTop_toTopOf="@id/viewPager"
-        android:text="TextView" />
+        app:layout_constraintTop_toTopOf="@id/viewPager" />
 
     <androidx.viewpager.widget.ViewPager
         android:id="@+id/viewPager"
@@ -51,8 +51,8 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
-        android:text="@string/button_snap"
         android:onClick="takePhoto"
+        android:text="@string/button_snap"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:text="@string/button_snap" />
@@ -97,11 +97,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
+        android:imeOptions="actionDone"
         android:inputType="text"
         android:text=""
-        android:imeOptions="actionDone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/imageView2" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="203dp"
+        android:layout_height="36dp"
+        android:layout_marginTop="12dp"
+        android:text="Timestamp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageCaption" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
