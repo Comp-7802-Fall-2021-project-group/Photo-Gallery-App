@@ -13,4 +13,7 @@
     <string name="search_message">Filter photos by keywords</string>
     <string name="button_submit">Submit</string>
     <string name="button_cancel">Cancel</string>
+
+    <string name="label_latitude">Latitude</string>
+    <string name="label_longitude">Longitude</string>
 </resources>
