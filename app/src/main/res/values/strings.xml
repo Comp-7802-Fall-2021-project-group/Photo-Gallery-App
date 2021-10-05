@@ -5,6 +5,7 @@
     <string name="button_search">Search</string>
     <string name="button_left">Left</string>
     <string name="button_right">Right</string>
+    <string name="button_upload">Upload</string>
 
     <string name="label_start_date">From:</string>
     <string name="label_end_date">To:</string>

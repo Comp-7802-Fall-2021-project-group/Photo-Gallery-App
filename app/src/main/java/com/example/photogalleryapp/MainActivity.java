@@ -1,5 +1,6 @@
 package com.example.photogalleryapp;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
@@ -146,15 +147,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    @SuppressLint("NonConstantResourceId")
     public void scrollPhotos(View v) {
         updatePhoto(photos.get(index), ((EditText) findViewById(R.id.editTextCaption)).getText().toString());
         switch (v.getId()) {
-            case R.id.button2:
+            case R.id.buttonLeft:
                 if (index > 0) {
                     this.index--;
                 }
                 break;
-            case R.id.button3:
+            case R.id.buttonRight:
                 if (index < (photos.size() - 1)) {
                     index++;
                 }
