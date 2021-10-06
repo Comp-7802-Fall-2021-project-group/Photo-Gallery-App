@@ -35,7 +35,7 @@ public class ExampleInstrumentedTest {
     // Find a photo by a specific date range & keyword
     @Test
     public void searchByDate() {
-        onView(withId(R.id.button2)).perform(click());
+        onView(withId(R.id.buttonLeft)).perform(click());
         onView(withId(R.id.startDate)).perform(typeText(""), closeSoftKeyboard());
         onView(withId(R.id.endDate)).perform(typeText(""), closeSoftKeyboard());
         onView(withId(R.id.editKeywordSearch)).perform(typeText("caption"), closeSoftKeyboard());
@@ -46,7 +46,7 @@ public class ExampleInstrumentedTest {
     // Move to next picture (move right) and go back to previous picture (left)
     @Test
     public void galleryNavigation() {
-        onView(withId(R.id.button2)).perform(click());
-        onView(withId(R.id.button3)).perform(click());
+        onView(withId(R.id.buttonLeft)).perform(click());
+        onView(withId(R.id.buttonRight)).perform(click());
     }
 }
