@@ -6,8 +6,10 @@
         android:name="android.hardware.camera"
         android:required="true" />
 
+
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="true"
@@ -42,6 +44,11 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <service
+            android:foregroundServiceType="location"
+            android:name="com.example.photogalleryapp.libs.PhotoLocationProvider" />
+
     </application>
 
 </manifest>
