@@ -32,26 +32,28 @@
         tools:text="@string/button_snap" />
 
     <Button
-        android:id="@+id/buttonLeft"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:text="@string/button_left"
-        app:layout_constraintBottom_toTopOf="@+id/buttonSearch"
-        app:layout_constraintEnd_toStartOf="@+id/buttonRight"
-        tools:text="@string/button_left" />
+            android:id="@+id/buttonLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:text="@string/button_left"
+            app:layout_constraintBottom_toTopOf="@+id/buttonSearch"
+            app:layout_constraintEnd_toStartOf="@+id/buttonRight"
+            tools:text="@string/button_left"
+            android:onClick="scrollPhotos" />
 
     <Button
-        android:id="@+id/buttonRight"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:text="@string/button_right"
-        app:layout_constraintBottom_toTopOf="@+id/buttonSnap"
-        app:layout_constraintEnd_toEndOf="parent"
-        tools:text="@string/button_right" />
+            android:id="@+id/buttonRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:text="@string/button_right"
+            app:layout_constraintBottom_toTopOf="@+id/buttonSnap"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:text="@string/button_right"
+            android:onClick="scrollPhotos" />
 
     <Button
         android:id="@+id/buttonSearch"
