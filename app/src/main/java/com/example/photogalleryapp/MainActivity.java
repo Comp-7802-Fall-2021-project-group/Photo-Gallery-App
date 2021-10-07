@@ -14,6 +14,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     String currentPhotoPath;
     private ArrayList<String> photos = null;
     private int index = 0;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,7 +80,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-
     // Navigate the user to the search view
     public void gotoSearch(View view) {
         Intent intent = new Intent(this, SearchActivity.class);
@@ -111,6 +112,22 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+    }
+
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "_caption_" + timeStamp + "_";
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+        currentPhotoPath = image.getAbsolutePath();
+        return image;
     }
 
     public ArrayList<String> findPhotos() throws ParseException {
@@ -183,32 +200,22 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private File createImageFile() throws IOException {
-        // Create an image file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "_caption_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
-        );
-
-        // Save a file: path for use with ACTION_VIEW intents
-        currentPhotoPath = image.getAbsolutePath();
-        return image;
-    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            ImageView mImageView = (ImageView) findViewById(R.id.imageView2);
-            mImageView.setImageBitmap(BitmapFactory.decodeFile(currentPhotoPath));
-            try {
-                photos = findPhotos();
-            } catch (ParseException e) {
-                Log.d("MainActivity", e.toString());
+        if (requestCode == REQUEST_IMAGE_CAPTURE) {
+            if (resultCode == RESULT_OK) {
+                ImageView mImageView = (ImageView) findViewById(R.id.imageView2);
+                mImageView.setImageBitmap(BitmapFactory.decodeFile(currentPhotoPath));
+                try {
+                    photos = findPhotos();
+                } catch (ParseException e) {
+                    Log.d("MainActivity", e.toString());
+                }
+            } else {
+                File file = new File(currentPhotoPath);
+                file.delete();
             }
         }
     }
