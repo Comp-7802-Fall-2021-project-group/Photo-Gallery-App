@@ -169,7 +169,9 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("NonConstantResourceId")
     public void scrollPhotos(View v) {
-        updatePhoto(photos.get(index), ((EditText) findViewById(R.id.editTextCaption)).getText().toString());
+        // TODO: fix the rename scheme when scrolling photo,
+        //  imagine captions and file extension incorrect
+        // updatePhoto(photos.get(index), ((EditText) findViewById(R.id.editTextCaption)).getText().toString());
         switch (v.getId()) {
             case R.id.buttonLeft:
                 if (index > 0) {
@@ -208,8 +210,8 @@ public class MainActivity extends AppCompatActivity {
 
         File file = new File(photos.get(index));
 
-        if(!file.exists()) {
-            Log.wtf("File Upload Error", file.getAbsolutePath()+ " does not exist");
+        if (!file.exists()) {
+            Log.wtf("File Upload Error", file.getAbsolutePath() + " does not exist");
             finish();
         }
 
