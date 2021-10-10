@@ -2,7 +2,10 @@ package com.example.photogalleryapp;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
@@ -200,6 +203,32 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Share photo to social media using Android Sharesheet
+    public void uploadPhoto(View view) {
+
+        File file = new File(photos.get(index));
+
+        if(!file.exists()) {
+            Log.wtf("File Upload Error", file.getAbsolutePath()+ " does not exist");
+            finish();
+        }
+
+        Uri uri = FileProvider.getUriForFile(this, "com.example.android.fileprovider", file);
+
+        String filename = uri.getLastPathSegment();
+
+        Intent shareIntent = new Intent();
+        shareIntent.setAction(Intent.ACTION_SEND);
+
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        shareIntent.putExtra(Intent.EXTRA_TITLE, filename);
+        shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+        shareIntent.setType("image/jpeg");
+
+        Intent chooser = Intent.createChooser(shareIntent, "Share photo");
+
+        startActivity(chooser);
+    }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
