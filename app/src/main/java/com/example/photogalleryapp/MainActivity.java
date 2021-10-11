@@ -1,11 +1,15 @@
 package com.example.photogalleryapp;
 
+import static androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION;
+import static com.google.android.gms.location.LocationRequest.PRIORITY_LOW_POWER;
+
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -15,15 +19,20 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.exifinterface.media.ExifInterface;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.CancellationTokenSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -35,27 +44,36 @@ import java.util.Date;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    static final int REQUEST_IMAGE_CAPTURE = 1;
-    String currentPhotoPath;
+    /**
+     * ALL CLASS VARIABLES
+     */
+    private static final int CAMERA_PERMISSION_CODE = 100;
+    private static final int STORAGE_PERMISSION_CODE = 101;
+    private static final int LOCATION_PERMISSION_CODE = 103;
+    private static final int REQUEST_IMAGE_CAPTURE = 1;
+
     private ArrayList<String> photos = null;
+    private String currentPhotoPath;
     private int index = 0;
-    // Approach #1: using Google Play services location APIs
+    private Location curLocation;
+
     private FusedLocationProviderClient fusedLocationClient;
 
-    // Approach #2: using Exifinterface
-//    private String filename = "";
-//    private String lat = "";
-//    private String lng = "";
-
+    /**
+     * OVERRIDE METHODS
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        try {
-            photos = findPhotos();
-        } catch (ParseException e) {
-            Log.d("MainActivity", e.toString());
-        }
+
+        // Earrly check for appropriate permission
+        checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, STORAGE_PERMISSION_CODE);
+        checkPermission(Manifest.permission.CAMERA, CAMERA_PERMISSION_CODE);
+        checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, LOCATION_PERMISSION_CODE);
+
+
+        photos = findPhotos();
 
         if (photos.size() == 0) {
             displayPhoto(null);
@@ -63,45 +81,206 @@ public class MainActivity extends AppCompatActivity {
             displayPhoto(photos.get(index));
         }
 
-
-        // Approach #1
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(this, location -> {
+                    // Got last known location. In some rare situations this can be null.
+                    if (location != null) {
+                        // Logic to handle location object
+                        curLocation = location;
+                        Log.d("Location", "location => " + location.toString());
+                    }
+                });
+    }
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
+    // Confirm permissions and display an appropriate toad message for each permission
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode,
+                permissions,
+                grantResults);
 
-            System.out.println("I do not have ACCESS_COARSE_LOCATION permission");
-            return;
+        if (requestCode == CAMERA_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(MainActivity.this, "Camera Permission Granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Camera Permission Denied", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == STORAGE_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == LOCATION_PERMISSION_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(MainActivity.this, "Location Permission Granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "Location Permission Denied", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    /**
+     * ALL NORMAL METHODS ARE DECLARED HERE
+     */
+
+    // Check for app required permission and ask for user approval
+    private void checkPermission(String permission, int requestCode) {
+        if (ContextCompat.checkSelfPermission(MainActivity.this, permission) == PackageManager.PERMISSION_DENIED) {
+            // Requesting the permission
+            ActivityCompat.requestPermissions(MainActivity.this, new String[]{permission}, requestCode);
         } else {
-            System.out.println("I have ACCESS_COARSE_LOCATION permission");
-            fusedLocationClient.getLastLocation()
+            Toast.makeText(MainActivity.this, "Permission already granted", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // Create a temporary placeholder image file, and pass it back to the Camera intent
+    private File createImageFile() throws IOException {
+        // Create an image file name
+        String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+        // Save a file: path for use with ACTION_VIEW intents
+        currentPhotoPath = image.getAbsolutePath();
+
+        return image;
+    }
+
+    // Add location and tagging data to the new photo's exif metadata
+    @SuppressLint("MissingPermission")
+    private void decorateNewPhotoWithExifData(String currentPhotoPath) {
+        try {
+            ExifInterface exif = new ExifInterface(currentPhotoPath);
+            exif.setAttribute(TAG_IMAGE_DESCRIPTION, "");
+            exif.setLatLong(0, 0);
+
+            CancellationTokenSource cts = new CancellationTokenSource();
+            fusedLocationClient.getCurrentLocation(PRIORITY_LOW_POWER, cts.getToken())
                     .addOnSuccessListener(this, location -> {
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
                             // Logic to handle location object
-                            System.out.println("location => " + location.toString());
+                            curLocation = location;
+                            Log.d("Location", "location => " + location.toString());
                         }
                     });
+            exif.setLatLong(curLocation.getLatitude(), curLocation.getLongitude());
+            exif.saveAttributes();
+        } catch (IOException e) {
+            Log.d("REQUEST_IMAGE_CAPTURE", "Unable to set EXIF attribute for the image");
         }
-
-        // Approach #2
-//        try {
-//            ExifInterface exif = new ExifInterface(this.filename);
-//             this.lat = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
-//             this.lng = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
-//            System.out.println("lat and lng => " +  this.lat + this.lng);
-//        } catch (IOException e) {
-//            Logger logger = Logger.getAnonymousLogger();
-//            logger.log(Level.SEVERE, "File no found. The photo does not exist", e);
-//        }
     }
 
+    // Default find photos method to reload the list of pictures
+    public ArrayList<String> findPhotos() {
+        return findPhotos("", "", "");
+    }
+
+    // Overloading the default find photo methods to reload picture based on search criterias
+    public ArrayList<String> findPhotos(String startDate, String endDate, String
+            editKeywordSearch) {
+        // create start date and end date if exist
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
+        Date start = null, end = null;
+        List<String> listKeyword;
+        try {
+            if (!endDate.isEmpty()) end = formatter.parse(endDate);
+            if (!startDate.isEmpty()) start = formatter.parse(startDate);
+        } catch (ParseException e) {
+            Log.d("findPhotos", "Problem with date parser");
+        }
+        if (!editKeywordSearch.isEmpty()) {
+            listKeyword = Arrays.asList(editKeywordSearch.split("\n"));
+        }
+
+        // load file list
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
+        File[] fList = file.listFiles();
+        ArrayList<String> photos = new ArrayList<String>();
+
+        //
+        if (fList != null) {
+            for (File f : fList) {
+                Date fDate = new Date(f.lastModified());
+                if (!startDate.isEmpty() && !fDate.after(start)) continue;
+                if (!endDate.isEmpty() && !fDate.before(end)) continue;
+                photos.add(f.getPath());
+            }
+        }
+
+        return photos;
+    }
+
+    // Update photo UI based based on given data from displayPhoto()
+    public void loadPhotoDataIntoView(String caption, String timestamp, String filename,
+                                      double latitude, double longitude) {
+        EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
+        TextView tvTimestamp = (TextView) findViewById(R.id.textViewTimestamp);
+        TextView tvFilename = (TextView) findViewById(R.id.textViewFilename);
+        TextView tvLat = (TextView) findViewById(R.id.textViewLat);
+        TextView tvLong = (TextView) findViewById(R.id.textViewLong);
+
+        etCaption.setText(caption);
+        tvTimestamp.setText(timestamp);
+        tvFilename.setText(filename);
+        tvLat.setText(String.format("Latitude: %,.4f", latitude));
+        tvLong.setText(String.format("Longitude: %,.4f", longitude));
+    }
+
+    // Load current picture with the caption and geo from the picture's exif metadata
+    public void displayPhoto(String path) {
+        ImageView image = (ImageView) findViewById(R.id.imageView2);
+
+        if (path == null || path.equals("")) {
+            image.setImageResource(R.mipmap.ic_launcher);
+            loadPhotoDataIntoView("", "", "", 0, 0);
+        } else {
+            File f = new File(path);
+            Date fDate = new Date(f.lastModified());
+
+            String caption = null;
+            double latitude, longitude;
+            try {
+                ExifInterface exif = new ExifInterface(path);
+                caption = exif.getAttribute(TAG_IMAGE_DESCRIPTION);
+                latitude = exif.getLatLong()[0];
+                longitude = exif.getLatLong()[1];
+            } catch (NullPointerException | IOException e) {
+                latitude = 0;
+                longitude = 0;
+            }
+            if (caption == null)
+                caption = "";
+
+            // Set photo based on retrieved data
+            image.setImageBitmap(BitmapFactory.decodeFile(path));
+            loadPhotoDataIntoView(caption, fDate.toString(), path, latitude, longitude);
+        }
+    }
+
+
+    //Update the photo caption EXIF metadata
+    private void saveCaptionToExif(String path, String caption) {
+        try {
+            ExifInterface exif = new ExifInterface(path);
+            exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
+            exif.saveAttributes();
+        } catch (IOException e) {
+            Log.d("updatePhoto", "Unable to retrieve EXIF data from the file");
+        }
+    }
+
+
+    /**
+     * ALL RESULT CALL BACK METHOD AND ACTIVITY LAUNCHERS
+     */
 
     // You can do the assignment inside onAttach or onCreate, i.e, before the activity is displayed
     ActivityResultLauncher<Intent> searchActivityResultLauncher = registerForActivityResult(
@@ -115,11 +294,8 @@ public class MainActivity extends AppCompatActivity {
                     String endDate = data.getStringExtra("endDate");
                     String editKeywordSearch = data.getStringExtra("editKeywordSearch");
 
-                    try {
-                        photos = findPhotos(startDate, endDate, editKeywordSearch);
-                    } catch (ParseException e) {
-                        Log.d("MainActivity", e.toString());
-                    }
+                    // Refresh photo list
+                    photos = findPhotos(startDate, endDate, editKeywordSearch);
 
                     if (photos.size() == 0) {
                         displayPhoto(null);
@@ -128,6 +304,41 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        // Handle result call back from Camera capture intent
+        if (requestCode == REQUEST_IMAGE_CAPTURE) {
+            if (resultCode == RESULT_OK) {
+                // If a new photo is saved successfully, add EXIF data and display the photo
+                decorateNewPhotoWithExifData(currentPhotoPath);
+
+                // Refresh photo list and index
+                photos = findPhotos();
+                for (int i = 0; i < photos.size(); i++) {
+                    if (photos.get(i).equals(currentPhotoPath)) {
+                        index = i;
+                        break;
+                    }
+                }
+                displayPhoto(photos.get(index));
+            } else {
+                // If photo is unavailable, delete the placeholder file from disk
+                // and reset the current photo path
+                File file = new File(currentPhotoPath);
+                file.delete();
+                currentPhotoPath = "";
+            }
+        }
+    }
+
+
+    /**
+     * PUBLIC METHOD FOR BUTTON ACTION
+     */
 
     // Navigate the user to the search view
     public void gotoSearch(View view) {
@@ -140,6 +351,7 @@ public class MainActivity extends AppCompatActivity {
         finish();
     }
 
+    // Take a new picture and launch picture intent
     public void takePhoto(View view) {
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
         // Ensure that there's a camera activity to handle the intent
@@ -163,61 +375,8 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private File createImageFile() throws IOException {
-        // Create an image file name
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "_caption_" + timeStamp + "_";
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
-        );
-
-        // Save a file: path for use with ACTION_VIEW intents
-        currentPhotoPath = image.getAbsolutePath();
-        return image;
-    }
-
-    public ArrayList<String> findPhotos() throws ParseException {
-        return findPhotos("", "", "");
-    }
-
-    public ArrayList<String> findPhotos(String startDate, String endDate, String editKeywordSearch) throws ParseException {
-        // create start date and end date if exist
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
-        Date start = null, end = null;
-        List<String> listKeyword;
-        if (!endDate.isEmpty()) end = formatter.parse(endDate);
-        if (!startDate.isEmpty()) start = formatter.parse(startDate);
-        if (!editKeywordSearch.isEmpty()) {
-            listKeyword = Arrays.asList(editKeywordSearch.split("\n"));
-        }
-
-        // load file list
-        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
-        ArrayList<String> photos = new ArrayList<String>();
-        File[] fList = file.listFiles();
-
-        //
-        if (fList != null) {
-            for (File f : fList) {
-                Date fDate = new Date(f.lastModified());
-                if (!startDate.isEmpty() && !fDate.after(start)) continue;
-                if (!endDate.isEmpty() && !fDate.before(end)) continue;
-                photos.add(f.getPath());
-            }
-        }
-
-        return photos;
-    }
-
-
-    @SuppressLint("NonConstantResourceId")
+    // Scroll photo and update of the photo
     public void scrollPhotos(View v) {
-        // TODO: fix the rename scheme when scrolling photo,
-        //  imagine captions and file extension incorrect
-        // updatePhoto(photos.get(index), ((EditText) findViewById(R.id.editTextCaption)).getText().toString());
         switch (v.getId()) {
             case R.id.buttonLeft:
                 if (index > 0) {
@@ -235,19 +394,13 @@ public class MainActivity extends AppCompatActivity {
         displayPhoto(photos.get(index));
     }
 
-    public void displayPhoto(String path) {
-        ImageView iv = (ImageView) findViewById(R.id.imageView2);
-        TextView tv = (TextView) findViewById(R.id.textView);
-        EditText et = (EditText) findViewById(R.id.editTextCaption);
-        if (path == null || path == "") {
-            iv.setImageResource(R.mipmap.ic_launcher);
-            et.setText("");
-            tv.setText("");
-        } else {
-            iv.setImageBitmap(BitmapFactory.decodeFile(path));
-            String[] attr = path.split("_");
-            et.setText(attr[1]);
-            tv.setText(attr[2]);
+    // Start to update the current picture caption, then reload the picture data
+    public void updateCaption(View view) {
+        if (photos.size() > 0) {
+            EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
+            saveCaptionToExif(photos.get(index), etCaption.getText().toString());
+            displayPhoto(photos.get(index));
+            Toast.makeText(MainActivity.this, "Caption saved", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -269,6 +422,7 @@ public class MainActivity extends AppCompatActivity {
         shareIntent.setAction(Intent.ACTION_SEND);
 
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        shareIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
         shareIntent.putExtra(Intent.EXTRA_TITLE, filename);
         shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
         shareIntent.setType("image/jpeg");
@@ -277,33 +431,4 @@ public class MainActivity extends AppCompatActivity {
 
         startActivity(chooser);
     }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_IMAGE_CAPTURE) {
-            if (resultCode == RESULT_OK) {
-                ImageView mImageView = (ImageView) findViewById(R.id.imageView2);
-                mImageView.setImageBitmap(BitmapFactory.decodeFile(currentPhotoPath));
-                try {
-                    photos = findPhotos();
-                } catch (ParseException e) {
-                    Log.d("MainActivity", e.toString());
-                }
-            } else {
-                File file = new File(currentPhotoPath);
-                file.delete();
-            }
-        }
-    }
-
-    private void updatePhoto(String path, String caption) {
-        String[] attr = path.split("_");
-        if (attr.length >= 3) {
-            File to = new File(attr[0] + "_" + caption + "_" + attr[2] + "_" + attr[3]);
-            File from = new File(path);
-            from.renameTo(to);
-        }
-    }
-
 }
