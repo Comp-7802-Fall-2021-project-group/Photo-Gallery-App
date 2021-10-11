@@ -1,11 +1,10 @@
 package com.example.photogalleryapp;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Bundle;
@@ -17,11 +16,14 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
+
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,7 +39,13 @@ public class MainActivity extends AppCompatActivity {
     String currentPhotoPath;
     private ArrayList<String> photos = null;
     private int index = 0;
+    // Approach #1: using Google Play services location APIs
+    private FusedLocationProviderClient fusedLocationClient;
 
+    // Approach #2: using Exifinterface
+//    private String filename = "";
+//    private String lat = "";
+//    private String lng = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +62,44 @@ public class MainActivity extends AppCompatActivity {
         } else {
             displayPhoto(photos.get(index));
         }
+
+
+        // Approach #1
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+
+            System.out.println("I do not have ACCESS_COARSE_LOCATION permission");
+            return;
+        } else {
+            System.out.println("I have ACCESS_COARSE_LOCATION permission");
+            fusedLocationClient.getLastLocation()
+                    .addOnSuccessListener(this, location -> {
+                        // Got last known location. In some rare situations this can be null.
+                        if (location != null) {
+                            // Logic to handle location object
+                            System.out.println("location => " + location.toString());
+                        }
+                    });
+        }
+
+        // Approach #2
+//        try {
+//            ExifInterface exif = new ExifInterface(this.filename);
+//             this.lat = exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE);
+//             this.lng = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE);
+//            System.out.println("lat and lng => " +  this.lat + this.lng);
+//        } catch (IOException e) {
+//            Logger logger = Logger.getAnonymousLogger();
+//            logger.log(Level.SEVERE, "File no found. The photo does not exist", e);
+//        }
     }
 
 
