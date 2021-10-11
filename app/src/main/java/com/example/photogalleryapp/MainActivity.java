@@ -1,7 +1,7 @@
 package com.example.photogalleryapp;
 
 import static androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION;
-import static com.google.android.gms.location.LocationRequest.PRIORITY_LOW_POWER;
+import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
@@ -42,6 +42,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
     /**
@@ -74,12 +75,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         photos = findPhotos();
-
-        if (photos.size() == 0) {
-            displayPhoto(null);
-        } else {
-            displayPhoto(photos.get(index));
-        }
+        updatePhotoFromIndex();
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
         fusedLocationClient.getLastLocation()
@@ -162,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
             exif.setLatLong(0, 0);
 
             CancellationTokenSource cts = new CancellationTokenSource();
-            fusedLocationClient.getCurrentLocation(PRIORITY_LOW_POWER, cts.getToken())
+            fusedLocationClient.getCurrentLocation(PRIORITY_HIGH_ACCURACY, cts.getToken())
                     .addOnSuccessListener(this, location -> {
                         // Got last known location. In some rare situations this can be null.
                         if (location != null) {
@@ -171,50 +167,139 @@ public class MainActivity extends AppCompatActivity {
                             Log.d("Location", "location => " + location.toString());
                         }
                     });
-            exif.setLatLong(curLocation.getLatitude(), curLocation.getLongitude());
+            if (curLocation != null)
+                exif.setLatLong(curLocation.getLatitude(), curLocation.getLongitude());
             exif.saveAttributes();
         } catch (IOException e) {
             Log.d("REQUEST_IMAGE_CAPTURE", "Unable to set EXIF attribute for the image");
         }
     }
 
+    // Auto update photo using the current index
+    private void updatePhotoFromIndex() {
+        if (photos.size() == 0) {
+            displayPhoto(null);
+        } else {
+            displayPhoto(photos.get(index));
+        }
+    }
+
+    /**
+     * Calculate distance between two points in latitude and longitude taking
+     * into account height difference. If you are not interested in height
+     * difference pass 0.0. Uses Haversine method as its base.
+     * <p>
+     * lat1, lon1 Start point lat2, lon2 End point el1 Start altitude in meters
+     * el2 End altitude in meters
+     *
+     * @returns Distance in Meters
+     */
+    public static double distance(double lat1, double lat2, double lon1,
+                                  double lon2, double el1, double el2) {
+
+        final int R = 6371; // Radius of the earth
+
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double distance = R * c * 1000; // convert to meters
+
+        double height = el1 - el2;
+
+        distance = Math.pow(distance, 2) + Math.pow(height, 2);
+
+        return Math.sqrt(distance);
+    }
+
+
     // Default find photos method to reload the list of pictures
     public ArrayList<String> findPhotos() {
-        return findPhotos("", "", "");
+        return findPhotos("", "", "", "", "");
     }
 
     // Overloading the default find photo methods to reload picture based on search criterias
-    public ArrayList<String> findPhotos(String startDate, String endDate, String
-            editKeywordSearch) {
+    public ArrayList<String> findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
         // create start date and end date if exist
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
         Date start = null, end = null;
-        List<String> listKeyword;
+        double searchLatitude = 0, searchLongitude = 0;
+        List<String> listKeyword = null;
+
+        // prepare data for search
         try {
             if (!endDate.isEmpty()) end = formatter.parse(endDate);
             if (!startDate.isEmpty()) start = formatter.parse(startDate);
+            if (!latitude.isEmpty()) searchLatitude = Double.parseDouble(latitude);
+            if (!longitude.isEmpty()) searchLongitude = Double.parseDouble(longitude);
         } catch (ParseException e) {
             Log.d("findPhotos", "Problem with date parser");
         }
         if (!editKeywordSearch.isEmpty()) {
-            listKeyword = Arrays.asList(editKeywordSearch.split("\n"));
+            listKeyword = Arrays.asList(editKeywordSearch.split("\\s+"));
         }
+
 
         // load file list
         File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
         File[] fList = file.listFiles();
         ArrayList<String> photos = new ArrayList<String>();
 
-        //
+        // checking photo for search criteria for each file of the list
         if (fList != null) {
             for (File f : fList) {
+                // get last modified day
                 Date fDate = new Date(f.lastModified());
+
+                // Retrieve caption from the exif data
+                String fCaption = null;
+                double fLatitude = 0, flongitude = 0;
+                try {
+                    ExifInterface exif = new ExifInterface(f);
+                    fCaption = exif.getAttribute(TAG_IMAGE_DESCRIPTION);
+                    fLatitude = exif.getLatLong()[0];
+                    flongitude = exif.getLatLong()[1];
+
+                } catch (IOException e) {
+                    Log.d("findPhotos", "Unable to load exif data for " + f.getAbsolutePath());
+                } catch (NullPointerException e) {
+                    fLatitude = 0;
+                    flongitude = 0;
+                }
+
+                if (fCaption == null)
+                    fCaption = "";
+                else
+                    fCaption = fCaption.toLowerCase(Locale.ROOT);
+
+                /*
+                 * start checking the search criteria, skip photo if any criteria is unmatched
+                 */
                 if (!startDate.isEmpty() && !fDate.after(start)) continue;
                 if (!endDate.isEmpty() && !fDate.before(end)) continue;
+
+                if (!editKeywordSearch.isEmpty()) { // if not empty
+                    boolean found = false;
+                    for (String keyword : listKeyword) {
+                        if (fCaption.contains(keyword.toLowerCase(Locale.ROOT)))
+                            found = true;
+                    }
+                    if (!found) continue;
+                }
+
+                if (!latitude.isEmpty() && !longitude.isEmpty()) {
+                    double distance = distance(fLatitude, searchLatitude, flongitude, searchLongitude, 0.0, 0.0);
+                    Log.d("findPhotos", "Search distance " + distance + "km");
+                    if (distance > 20)
+                        continue;
+                }
+
+                // add photo if pass all check
                 photos.add(f.getPath());
             }
         }
-
         return photos;
     }
 
@@ -261,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
 
             // Set photo based on retrieved data
             image.setImageBitmap(BitmapFactory.decodeFile(path));
-            loadPhotoDataIntoView(caption, fDate.toString(), path, latitude, longitude);
+            loadPhotoDataIntoView(caption, fDate.toString(), f.getName(), latitude, longitude);
         }
     }
 
@@ -293,15 +378,14 @@ public class MainActivity extends AppCompatActivity {
                     String startDate = data.getStringExtra("startDate");
                     String endDate = data.getStringExtra("endDate");
                     String editKeywordSearch = data.getStringExtra("editKeywordSearch");
+                    String latitude = data.getStringExtra("latitude");
+                    String longitude = data.getStringExtra("longitude");
 
                     // Refresh photo list
-                    photos = findPhotos(startDate, endDate, editKeywordSearch);
+                    index = 0;
+                    photos = findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
 
-                    if (photos.size() == 0) {
-                        displayPhoto(null);
-                    } else {
-                        displayPhoto(photos.get(index));
-                    }
+                    updatePhotoFromIndex();
                 }
             });
 
@@ -324,7 +408,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
                     }
                 }
-                displayPhoto(photos.get(index));
+                updatePhotoFromIndex();
             } else {
                 // If photo is unavailable, delete the placeholder file from disk
                 // and reset the current photo path
@@ -391,7 +475,7 @@ public class MainActivity extends AppCompatActivity {
             default:
                 break;
         }
-        displayPhoto(photos.get(index));
+        updatePhotoFromIndex();
     }
 
     // Start to update the current picture caption, then reload the picture data
@@ -399,7 +483,7 @@ public class MainActivity extends AppCompatActivity {
         if (photos.size() > 0) {
             EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
             saveCaptionToExif(photos.get(index), etCaption.getText().toString());
-            displayPhoto(photos.get(index));
+            updatePhotoFromIndex();
             Toast.makeText(MainActivity.this, "Caption saved", Toast.LENGTH_SHORT).show();
         }
     }
