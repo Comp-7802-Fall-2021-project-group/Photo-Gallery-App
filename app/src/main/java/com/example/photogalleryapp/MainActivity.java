@@ -53,12 +53,18 @@ public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_CODE = 103;
     private static final int REQUEST_IMAGE_CAPTURE = 1;
 
-    private ArrayList<String> photos = null;
+    private static ArrayList<String> photos = null;
     private String currentPhotoPath;
     private int index = 0;
     private Location curLocation;
 
     private FusedLocationProviderClient fusedLocationClient;
+
+    public static int getPhotoCount() {
+        if (photos != null)
+            return photos.size();
+        else return 0;
+    }
 
     /**
      * OVERRIDE METHODS
@@ -259,8 +265,10 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     ExifInterface exif = new ExifInterface(f);
                     fCaption = exif.getAttribute(TAG_IMAGE_DESCRIPTION);
-                    fLatitude = exif.getLatLong()[0];
-                    flongitude = exif.getLatLong()[1];
+                    if (exif.getLatLong() != null) {
+                        fLatitude = exif.getLatLong()[0];
+                        flongitude = exif.getLatLong()[1];
+                    }
 
                 } catch (IOException e) {
                     Log.d("findPhotos", "Unable to load exif data for " + f.getAbsolutePath());
@@ -331,12 +339,14 @@ public class MainActivity extends AppCompatActivity {
             Date fDate = new Date(f.lastModified());
 
             String caption = null;
-            double latitude, longitude;
+            double latitude = 0, longitude = 0;
             try {
                 ExifInterface exif = new ExifInterface(path);
                 caption = exif.getAttribute(TAG_IMAGE_DESCRIPTION);
-                latitude = exif.getLatLong()[0];
-                longitude = exif.getLatLong()[1];
+                if (exif.getLatLong() != null) {
+                    latitude = exif.getLatLong()[0];
+                    longitude = exif.getLatLong()[1];
+                }
             } catch (NullPointerException | IOException e) {
                 latitude = 0;
                 longitude = 0;
