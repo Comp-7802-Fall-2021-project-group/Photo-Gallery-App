@@ -1,4 +1,4 @@
-package com.example.photogalleryapp;
+package com.example.photogalleryapp.view;
 
 import static androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION;
 import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCURACY;
@@ -30,6 +30,10 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
 
+import com.example.photogalleryapp.R;
+import com.example.photogalleryapp.model.PhotoExifData;
+import com.example.photogalleryapp.presenter.MainPresenter;
+import com.example.photogalleryapp.util.Utilities;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.CancellationTokenSource;
@@ -41,6 +45,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -53,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int LOCATION_PERMISSION_CODE = 103;
     private static final int REQUEST_IMAGE_CAPTURE = 1;
 
+    private MainPresenter presenter = null;
     private static ArrayList<String> photos = null;
     private String currentPhotoPath;
     private int index = 0;
@@ -74,13 +80,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Earrly check for appropriate permission
+        presenter = new MainPresenter();
+
+        // Early check for appropriate permission
         checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, STORAGE_PERMISSION_CODE);
         checkPermission(Manifest.permission.CAMERA, CAMERA_PERMISSION_CODE);
         checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, LOCATION_PERMISSION_CODE);
 
-
-        photos = findPhotos();
+        photos = presenter.findPhotos();
         updatePhotoFromIndex();
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -142,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
     // Create a temporary placeholder image file, and pass it back to the Camera intent
     private File createImageFile() throws IOException {
         // Create an image file name
-        String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        @SuppressLint("SimpleDateFormat") String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
         File image = File.createTempFile(
                 imageFileName,  /* prefix */
@@ -158,26 +165,19 @@ public class MainActivity extends AppCompatActivity {
     // Add location and tagging data to the new photo's exif metadata
     @SuppressLint("MissingPermission")
     private void decorateNewPhotoWithExifData(String currentPhotoPath) {
-        try {
-            ExifInterface exif = new ExifInterface(currentPhotoPath);
-            exif.setAttribute(TAG_IMAGE_DESCRIPTION, "");
-            exif.setLatLong(0, 0);
-
-            CancellationTokenSource cts = new CancellationTokenSource();
-            fusedLocationClient.getCurrentLocation(PRIORITY_HIGH_ACCURACY, cts.getToken())
-                    .addOnSuccessListener(this, location -> {
-                        // Got last known location. In some rare situations this can be null.
-                        if (location != null) {
-                            // Logic to handle location object
-                            curLocation = location;
-                            Log.d("Location", "location => " + location.toString());
-                        }
-                    });
-            if (curLocation != null)
-                exif.setLatLong(curLocation.getLatitude(), curLocation.getLongitude());
-            exif.saveAttributes();
-        } catch (IOException e) {
-            Log.d("REQUEST_IMAGE_CAPTURE", "Unable to set EXIF attribute for the image");
+        CancellationTokenSource cts = new CancellationTokenSource();
+        fusedLocationClient.getCurrentLocation(PRIORITY_HIGH_ACCURACY, cts.getToken())
+                .addOnSuccessListener(this, location -> {
+                    // Got last known location. In some rare situations this can be null.
+                    if (location != null) {
+                        // Logic to handle location object
+                        curLocation = location;
+                        Log.d("Location", "location => " + location.toString());
+                    }
+                });
+        if (curLocation != null) {
+            presenter.saveNewPhotoWithExifData(currentPhotoPath, "",
+                                    curLocation.getLatitude(), curLocation.getLongitude());;
         }
     }
 
@@ -190,128 +190,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /**
-     * Calculate distance between two points in latitude and longitude taking
-     * into account height difference. If you are not interested in height
-     * difference pass 0.0. Uses Haversine method as its base.
-     * <p>
-     * lat1, lon1 Start point lat2, lon2 End point el1 Start altitude in meters
-     * el2 End altitude in meters
-     *
-     * @returns Distance in Meters
-     */
-    public static double distance(double lat1, double lat2, double lon1,
-                                  double lon2, double el1, double el2) {
-
-        final int R = 6371; // Radius of the earth
-
-        double latDistance = Math.toRadians(lat2 - lat1);
-        double lonDistance = Math.toRadians(lon2 - lon1);
-        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
-        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        double distance = R * c * 1000; // convert to meters
-
-        double height = el1 - el2;
-
-        distance = Math.pow(distance, 2) + Math.pow(height, 2);
-
-        return Math.sqrt(distance);
-    }
-
-
-    // Default find photos method to reload the list of pictures
-    public ArrayList<String> findPhotos() {
-        return findPhotos("", "", "", "", "");
-    }
-
-    // Overloading the default find photo methods to reload picture based on search criterias
-    public ArrayList<String> findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
-        // create start date and end date if exist
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
-        Date start = null, end = null;
-        double searchLatitude = 0, searchLongitude = 0;
-        List<String> listKeyword = null;
-
-        // prepare data for search
-        try {
-            if (!endDate.isEmpty()) end = formatter.parse(endDate);
-            if (!startDate.isEmpty()) start = formatter.parse(startDate);
-            if (!latitude.isEmpty()) searchLatitude = Double.parseDouble(latitude);
-            if (!longitude.isEmpty()) searchLongitude = Double.parseDouble(longitude);
-        } catch (ParseException e) {
-            Log.d("findPhotos", "Problem with date parser");
-        }
-        if (!editKeywordSearch.isEmpty()) {
-            listKeyword = Arrays.asList(editKeywordSearch.split("\\s+"));
-        }
-
-
-        // load file list
-        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
-        File[] fList = file.listFiles();
-        ArrayList<String> photos = new ArrayList<String>();
-
-        // checking photo for search criteria for each file of the list
-        if (fList != null) {
-            for (File f : fList) {
-                // get last modified day
-                Date fDate = new Date(f.lastModified());
-
-                // Retrieve caption from the exif data
-                String fCaption = null;
-                double fLatitude = 0, flongitude = 0;
-                try {
-                    ExifInterface exif = new ExifInterface(f);
-                    fCaption = exif.getAttribute(TAG_IMAGE_DESCRIPTION);
-                    if (exif.getLatLong() != null) {
-                        fLatitude = exif.getLatLong()[0];
-                        flongitude = exif.getLatLong()[1];
-                    }
-
-                } catch (IOException e) {
-                    Log.d("findPhotos", "Unable to load exif data for " + f.getAbsolutePath());
-                } catch (NullPointerException e) {
-                    fLatitude = 0;
-                    flongitude = 0;
-                }
-
-                if (fCaption == null)
-                    fCaption = "";
-                else
-                    fCaption = fCaption.toLowerCase(Locale.ROOT);
-
-                /*
-                 * start checking the search criteria, skip photo if any criteria is unmatched
-                 */
-                if (!startDate.isEmpty() && !fDate.after(start)) continue;
-                if (!endDate.isEmpty() && !fDate.before(end)) continue;
-
-                if (!editKeywordSearch.isEmpty()) { // if not empty
-                    boolean found = false;
-                    for (String keyword : listKeyword) {
-                        if (fCaption.contains(keyword.toLowerCase(Locale.ROOT)))
-                            found = true;
-                    }
-                    if (!found) continue;
-                }
-
-                if (!latitude.isEmpty() && !longitude.isEmpty()) {
-                    double distance = distance(fLatitude, searchLatitude, flongitude, searchLongitude, 0.0, 0.0);
-                    Log.d("findPhotos", "Search distance " + distance + "km");
-                    if (distance > 20)
-                        continue;
-                }
-
-                // add photo if pass all check
-                photos.add(f.getPath());
-            }
-        }
-        return photos;
-    }
-
     // Update photo UI based based on given data from displayPhoto()
+    @SuppressLint("DefaultLocale")
     public void loadPhotoDataIntoView(String caption, String timestamp, String filename,
                                       double latitude, double longitude) {
         EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
@@ -337,41 +217,14 @@ public class MainActivity extends AppCompatActivity {
         } else {
             File f = new File(path);
             Date fDate = new Date(f.lastModified());
-
-            String caption = null;
-            double latitude = 0, longitude = 0;
-            try {
-                ExifInterface exif = new ExifInterface(path);
-                caption = exif.getAttribute(TAG_IMAGE_DESCRIPTION);
-                if (exif.getLatLong() != null) {
-                    latitude = exif.getLatLong()[0];
-                    longitude = exif.getLatLong()[1];
-                }
-            } catch (NullPointerException | IOException e) {
-                latitude = 0;
-                longitude = 0;
-            }
-            if (caption == null)
-                caption = "";
+            PhotoExifData photoExifData = presenter.getPhotoExifData(path);
 
             // Set photo based on retrieved data
             image.setImageBitmap(BitmapFactory.decodeFile(path));
-            loadPhotoDataIntoView(caption, fDate.toString(), f.getName(), latitude, longitude);
+            loadPhotoDataIntoView(photoExifData.getCaption(), fDate.toString(), f.getName(),
+                    photoExifData.getLatitude(), photoExifData.getLongitude());
         }
     }
-
-
-    //Update the photo caption EXIF metadata
-    private void saveCaptionToExif(String path, String caption) {
-        try {
-            ExifInterface exif = new ExifInterface(path);
-            exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
-            exif.saveAttributes();
-        } catch (IOException e) {
-            Log.d("updatePhoto", "Unable to retrieve EXIF data from the file");
-        }
-    }
-
 
     /**
      * ALL RESULT CALL BACK METHOD AND ACTIVITY LAUNCHERS
@@ -393,7 +246,7 @@ public class MainActivity extends AppCompatActivity {
 
                     // Refresh photo list
                     index = 0;
-                    photos = findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
+                    photos = presenter.findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
 
                     updatePhotoFromIndex();
                 }
@@ -408,10 +261,11 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQUEST_IMAGE_CAPTURE) {
             if (resultCode == RESULT_OK) {
                 // If a new photo is saved successfully, add EXIF data and display the photo
+                // View will collect information and send back to presenter to save attributes
                 decorateNewPhotoWithExifData(currentPhotoPath);
 
                 // Refresh photo list and index
-                photos = findPhotos();
+                photos = presenter.findPhotos();
                 for (int i = 0; i < photos.size(); i++) {
                     if (photos.get(i).equals(currentPhotoPath)) {
                         index = i;
@@ -428,7 +282,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-
 
     /**
      * PUBLIC METHOD FOR BUTTON ACTION
@@ -470,6 +323,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Scroll photo and update of the photo
+    @SuppressLint("NonConstantResourceId")
     public void scrollPhotos(View v) {
         switch (v.getId()) {
             case R.id.buttonLeft:
@@ -492,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
     public void updateCaption(View view) {
         if (photos.size() > 0) {
             EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
-            saveCaptionToExif(photos.get(index), etCaption.getText().toString());
+            presenter.saveCaptionToExif(photos.get(index), etCaption.getText().toString());
             updatePhotoFromIndex();
             Toast.makeText(MainActivity.this, "Caption saved", Toast.LENGTH_SHORT).show();
         }
