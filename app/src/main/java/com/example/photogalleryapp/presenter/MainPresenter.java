@@ -3,13 +3,17 @@ package com.example.photogalleryapp.presenter;
 import static androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Environment;
+import android.provider.ContactsContract;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
 
 import com.example.photogalleryapp.model.PhotoExifData;
@@ -34,6 +38,12 @@ public class MainPresenter {
 
     private static final int PERMISSION_ALL = 99;
 
+    String [] AUTHORITIES = {
+           "com.example.android.fileprovider",
+    };
+
+    String PICTURES_DIRECTORY = "/Android/data/com.example.photogalleryapp/files/Pictures";
+
     String[] PERMISSIONS = {
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
             android.Manifest.permission.CAMERA,
@@ -42,6 +52,7 @@ public class MainPresenter {
 
     public MainPresenter() {
         photos = new Photos();
+        photos = findPhotos();
         photoExifData = new PhotoExifData();
     }
 
@@ -49,12 +60,29 @@ public class MainPresenter {
         return photos.getPhotosList();
     }
 
+    public File getPhotoFile(int index) {
+        File file = new File(photos.get(index));
+
+        Log.d("getphotofile: ", "index: "  + index);
+        Log.d("file", file.getAbsolutePath());
+
+        if (!file.exists()) {
+            Log.e("getPhotoFile", file.getAbsolutePath() + " does not exist");
+        }
+
+        return file;
+    }
+
+    public Uri getPhotoFileUri(Context activity, File file) {
+        return FileProvider.getUriForFile(activity, AUTHORITIES[0], file);
+    }
+
    // Default find photos method to reload the list of pictures
-    public ArrayList<String> findPhotos() {
+    public Photos findPhotos() {
         return findPhotos("", "", "", "", "");
     }
     // Overloading the default find photo methods to reload picture based on search criterias
-    public ArrayList<String> findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
+    public Photos findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
         // create start date and end date if exist
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
         Date start = null, end = null;
@@ -76,9 +104,9 @@ public class MainPresenter {
 
 
         // load file list
-        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), PICTURES_DIRECTORY);
         File[] fList = file.listFiles();
-        ArrayList<String> photos = new ArrayList<>();
+        Photos photos = new Photos();
 
         // checking photo for search criteria for each file of the list
         if (fList != null) {
@@ -130,7 +158,6 @@ public class MainPresenter {
                     if (distance > 20)
                         continue;
                 }
-
                 // add photo if pass all check
                 photos.add(f.getPath());
             }
@@ -180,6 +207,24 @@ public class MainPresenter {
             Log.d("ExifData", "Unable to set EXIF attribute for the image");
         }
 
+    }
+
+    public void createUploadPhotoIntent(Context context, int index) {
+        File file = getPhotoFile(index);
+        Uri uri = getPhotoFileUri(context, file);
+        String filename = file.getName();
+
+        Intent shareIntent = new Intent();
+        shareIntent.setAction(Intent.ACTION_SEND);
+
+        shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        shareIntent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        shareIntent.putExtra(Intent.EXTRA_TITLE, filename);
+        shareIntent.putExtra(Intent.EXTRA_STREAM, uri);
+        shareIntent.setType("image/jpeg");
+
+        Intent chooser = Intent.createChooser(shareIntent, "Share photo");
+        context.startActivity(chooser);
     }
 
     /**
