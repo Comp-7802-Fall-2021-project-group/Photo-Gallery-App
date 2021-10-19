@@ -2,6 +2,7 @@ package com.example.photogalleryapp.presenter;
 
 import static androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -16,6 +17,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
 
+import com.example.photogalleryapp.R;
 import com.example.photogalleryapp.model.PhotoExifData;
 import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.util.Utilities;
@@ -42,18 +44,30 @@ public class MainPresenter {
            "com.example.android.fileprovider",
     };
 
-    String PICTURES_DIRECTORY = "/Android/data/com.example.photogalleryapp/files/Pictures";
-
     String[] PERMISSIONS = {
             android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
             android.Manifest.permission.CAMERA,
             android.Manifest.permission.ACCESS_COARSE_LOCATION,
     };
 
+    String PICTURES_DIRECTORY = "/Android/data/com.example.photogalleryapp/files/Pictures";
+
     public MainPresenter() {
         photos = new Photos();
         photos = findPhotos();
         photoExifData = new PhotoExifData();
+    }
+
+    public File createImageFile(Context context) throws IOException {
+        // Create an image file name
+        @SuppressLint("SimpleDateFormat") String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+
+        return File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
     }
 
     public ArrayList<String> getPhotosList() {
@@ -183,11 +197,12 @@ public class MainPresenter {
 
     }
 
-    public void saveCaptionToExif(String path, String caption) {
+    public void saveCaptionToExif(Context context, int index, String caption) {
         try {
-            ExifInterface exif = new ExifInterface(path);
+            ExifInterface exif = new ExifInterface(photos.get(index));
             exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
             exif.saveAttributes();
+            Toast.makeText(context, "Caption saved", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             Log.d("saveCaptionToExif", "Unable to save EXIF data from the file");
         }
@@ -209,7 +224,7 @@ public class MainPresenter {
 
     }
 
-    public void createUploadPhotoIntent(Context context, int index) {
+    public void uploadPhotoIntent(Context context, int index) {
         File file = getPhotoFile(index);
         Uri uri = getPhotoFileUri(context, file);
         String filename = file.getName();

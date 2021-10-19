@@ -122,14 +122,8 @@ public class MainActivity extends AppCompatActivity {
 
     // Create a temporary placeholder image file, and pass it back to the Camera intent
     private File createImageFile() throws IOException {
-        // Create an image file name
-        @SuppressLint("SimpleDateFormat") String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        File storageDir = getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        File image = File.createTempFile(
-                imageFileName,  /* prefix */
-                ".jpg",         /* suffix */
-                storageDir      /* directory */
-        );
+        File image = presenter.createImageFile(this);
+
         // Save a file: path for use with ACTION_VIEW intents
         currentPhotoPath = image.getAbsolutePath();
 
@@ -185,11 +179,13 @@ public class MainActivity extends AppCompatActivity {
     public void displayPhoto(String path) {
         ImageView image = (ImageView) findViewById(R.id.imageView2);
 
+        // if photos can't be found, display generic android logo
         if (path == null || path.equals("")) {
             image.setImageResource(R.mipmap.ic_launcher);
             loadPhotoDataIntoView("", "", "", 0, 0);
         } else {
-            File f = new File(path);
+
+            File f = presenter.getPhotoFile(index);
             Date fDate = new Date(f.lastModified());
             PhotoExifData photoExifData = presenter.getPhotoExifData(path);
 
@@ -320,14 +316,13 @@ public class MainActivity extends AppCompatActivity {
     public void updateCaption(View view) {
         if (photos.size() > 0) {
             EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
-            presenter.saveCaptionToExif(photos.get(index), etCaption.getText().toString());
+            presenter.saveCaptionToExif(this, index, etCaption.getText().toString());
             updatePhotoFromIndex();
-            Toast.makeText(MainActivity.this, "Caption saved", Toast.LENGTH_SHORT).show();
         }
     }
 
     // Share photo to social media using Android Sharesheet
     public void uploadPhoto(View view) {
-        presenter.createUploadPhotoIntent(this, index);
+        presenter.uploadPhotoIntent(this, index);
     }
 }
