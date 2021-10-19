@@ -6,6 +6,7 @@ import static com.google.android.gms.location.LocationRequest.PRIORITY_HIGH_ACCU
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
@@ -53,10 +54,8 @@ public class MainActivity extends AppCompatActivity {
     /**
      * ALL CLASS VARIABLES
      */
-    private static final int CAMERA_PERMISSION_CODE = 100;
-    private static final int STORAGE_PERMISSION_CODE = 101;
-    private static final int LOCATION_PERMISSION_CODE = 103;
     private static final int REQUEST_IMAGE_CAPTURE = 1;
+
 
     private MainPresenter presenter = null;
     private static ArrayList<String> photos = null;
@@ -75,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * OVERRIDE METHODS
      */
+    @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,10 +82,7 @@ public class MainActivity extends AppCompatActivity {
 
         presenter = new MainPresenter();
 
-        // Early check for appropriate permission
-        checkPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, STORAGE_PERMISSION_CODE);
-        checkPermission(Manifest.permission.CAMERA, CAMERA_PERMISSION_CODE);
-        checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION, LOCATION_PERMISSION_CODE);
+        presenter.checkGrantPermissions(MainActivity.this);
 
         photos = presenter.findPhotos();
         updatePhotoFromIndex();
@@ -111,40 +108,17 @@ public class MainActivity extends AppCompatActivity {
                 permissions,
                 grantResults);
 
-        if (requestCode == CAMERA_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "Camera Permission Granted", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(MainActivity.this, "Camera Permission Denied", Toast.LENGTH_SHORT).show();
-            }
-        } else if (requestCode == STORAGE_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
-            }
-        } else if (requestCode == LOCATION_PERMISSION_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "Location Permission Granted", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(MainActivity.this, "Location Permission Denied", Toast.LENGTH_SHORT).show();
-            }
-        }
+        presenter.onPermissionsResult(
+                MainActivity.this,
+                requestCode,
+                permissions,
+                grantResults);
     }
 
     /**
      * ALL NORMAL METHODS ARE DECLARED HERE
      */
 
-    // Check for app required permission and ask for user approval
-    private void checkPermission(String permission, int requestCode) {
-        if (ContextCompat.checkSelfPermission(MainActivity.this, permission) == PackageManager.PERMISSION_DENIED) {
-            // Requesting the permission
-            ActivityCompat.requestPermissions(MainActivity.this, new String[]{permission}, requestCode);
-        } else {
-            Toast.makeText(MainActivity.this, "Permission already granted", Toast.LENGTH_SHORT).show();
-        }
-    }
 
     // Create a temporary placeholder image file, and pass it back to the Camera intent
     private File createImageFile() throws IOException {

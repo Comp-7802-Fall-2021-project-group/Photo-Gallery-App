@@ -2,14 +2,20 @@ package com.example.photogalleryapp.presenter;
 
 import static androidx.exifinterface.media.ExifInterface.TAG_IMAGE_DESCRIPTION;
 
+import android.content.Context;
+import android.content.pm.PackageManager;
 import android.os.Environment;
 import android.util.Log;
+import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.core.app.ActivityCompat;
 import androidx.exifinterface.media.ExifInterface;
 
 import com.example.photogalleryapp.model.PhotoExifData;
 import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.util.Utilities;
+import com.example.photogalleryapp.view.MainActivity;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,6 +31,14 @@ public class MainPresenter {
 
     PhotoExifData photoExifData;
     Photos photos;
+
+    private static final int PERMISSION_ALL = 99;
+
+    String[] PERMISSIONS = {
+            android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+            android.Manifest.permission.CAMERA,
+            android.Manifest.permission.ACCESS_COARSE_LOCATION,
+    };
 
     public MainPresenter() {
         photos = new Photos();
@@ -166,5 +180,41 @@ public class MainPresenter {
             Log.d("ExifData", "Unable to set EXIF attribute for the image");
         }
 
+    }
+
+    /**
+     * Permissions checking
+     *
+     * @param mainActivity
+     */
+    public void checkGrantPermissions(MainActivity mainActivity) {
+        // Early check for appropriate permission
+        if (!hasPermissions(mainActivity, false, PERMISSIONS)) {
+            ActivityCompat.requestPermissions(mainActivity, PERMISSIONS, PERMISSION_ALL);
+        }
+    }
+
+    private boolean hasPermissions(Context context, boolean showToast, String... permissions) {
+        if (context != null && permissions != null) {
+            for (String permission : permissions) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                    if (showToast)
+                        Toast.makeText(context, "Permission denied: " + permission, Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    public void onPermissionsResult(MainActivity mainActivity, int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == PERMISSION_ALL) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(mainActivity, "All Permission Granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(mainActivity, "Permission Denied", Toast.LENGTH_SHORT).show();
+                hasPermissions(mainActivity, true, PERMISSIONS);
+            }
+        }
     }
 }
