@@ -10,8 +10,11 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.BitmapFactory;
 import android.location.Location;
+
+import androidx.annotation.RequiresApi;
 import androidx.exifinterface.media.ExifInterface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -44,6 +47,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+@RequiresApi(api = Build.VERSION_CODES.N)
 public class MainActivity extends AppCompatActivity {
     /**
      * ALL CLASS VARIABLES
@@ -228,11 +232,14 @@ public class MainActivity extends AppCompatActivity {
 
     // This method seems like a good one for functional programming
     // Overloading the default find photo methods to reload picture based on search criterias
+    @RequiresApi(api = Build.VERSION_CODES.N)
     public ArrayList<String> findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
         // create start date and end date if exist
-        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
-        Date start = null, end = null;
-        double searchLatitude = 0, searchLongitude = 0;
+        final SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd", Locale.CANADA);
+        Date start = null;
+        Date end = null;
+        double searchLatitude = 0;
+        double searchLongitude = 0;
         List<String> listKeyword = null;
 
         // prepare data for search
@@ -253,6 +260,16 @@ public class MainActivity extends AppCompatActivity {
         File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
         File[] fList = file.listFiles();
         ArrayList<String> photos = new ArrayList<String>();
+
+        if(fList != null) {
+            final List<File> l = Arrays.asList(fList);
+            // 1. some setup steps
+            // 2. if the last modified date is out of range, go to next
+            // 3. if editKeyWordSearch is not empty, loop through the keyword list and set the flag found
+            // 4. if distance is greater than 20, go to next
+            // 5. append file path to photos
+            // l.stream().filter();
+        }
 
         // checking photo for search criteria for each file of the list
         if (fList != null) {
