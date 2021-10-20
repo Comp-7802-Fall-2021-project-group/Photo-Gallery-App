@@ -154,7 +154,8 @@ public class MainActivity extends AppCompatActivity {
         if (photos.size() == 0) {
             displayPhoto(null);
         } else {
-            displayPhoto(photos.get(index));
+            File file = presenter.getPhotoFile(index);
+            displayPhoto(file);
         }
     }
 
@@ -176,22 +177,23 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Load current picture with the caption and geo from the picture's exif metadata
-    public void displayPhoto(String path) {
+    public void displayPhoto(File file) {
         ImageView image = (ImageView) findViewById(R.id.imageView2);
 
         // if photos can't be found, display generic android logo
-        if (path == null || path.equals("")) {
+        if (file == null) {
+            index = 0;
             image.setImageResource(R.mipmap.ic_launcher);
             loadPhotoDataIntoView("", "", "", 0, 0);
         } else {
 
-            File f = presenter.getPhotoFile(index);
-            Date fDate = new Date(f.lastModified());
-            PhotoExifData photoExifData = presenter.getPhotoExifData(path);
+            Date fDate = new Date(file.lastModified());
+            String path = file.getAbsolutePath();
+            PhotoExifData photoExifData = presenter.getPhotoExifData(file.getAbsolutePath());
 
             // Set photo based on retrieved data
             image.setImageBitmap(BitmapFactory.decodeFile(path));
-            loadPhotoDataIntoView(photoExifData.getCaption(), fDate.toString(), f.getName(),
+            loadPhotoDataIntoView(photoExifData.getCaption(), fDate.toString(), file.getName(),
                     photoExifData.getLatitude(), photoExifData.getLongitude());
         }
     }
@@ -282,34 +284,32 @@ public class MainActivity extends AppCompatActivity {
             }
             // Continue only if the File was successfully created
             if (photoFile != null) {
-                Uri photoURI = FileProvider.getUriForFile(this,
-                        "com.example.android.fileprovider",
-                        photoFile);
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, photoURI);
+                Uri uri = presenter.getPhotoFileUri(this, photoFile);
+                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
                 startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
             }
         }
 
     }
 
-    // Scroll photo and update of the photo
-    @SuppressLint("NonConstantResourceId")
-    public void scrollPhotos(View v) {
-        switch (v.getId()) {
-            case R.id.buttonLeft:
-                if (index > 0) {
-                    this.index--;
-                }
-                break;
-            case R.id.buttonRight:
-                if (index < (photos.size() - 1)) {
-                    index++;
-                }
-                break;
-            default:
-                break;
+    public void scrollLeft(View v) {
+        if(v.getId() == R.id.buttonLeft && presenter.checkIfIndexExists(index - 1)) {
+            index--;
+            File file = presenter.getPhotoFile(index);
+            displayPhoto(file);
+        } else {
+            Log.d("scrollLeft", "different button clicked: " + v.toString());
         }
-        updatePhotoFromIndex();
+    }
+
+    public void scrollRight(View v) {
+        if(v.getId() == R.id.buttonRight && presenter.checkIfIndexExists(index + 1)) {
+            index++;
+            File file = presenter.getPhotoFile(index);
+            displayPhoto(file);
+        } else {
+            Log.d("scrollRight", "different button clicked: " + v.toString());
+        }
     }
 
     // Start to update the current picture caption, then reload the picture data

@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Environment;
 import android.provider.ContactsContract;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -70,18 +71,29 @@ public class MainPresenter {
         );
     }
 
+    public boolean checkIfIndexExists(int index)  {
+        if(index >= 0 && index <= photos.size()) {
+            return true;
+        } else {
+            Log.d("indexOutOfBounds", "this index is out of bounds " + index);
+            return false;
+        }
+    }
+
     public ArrayList<String> getPhotosList() {
         return photos.getPhotosList();
     }
 
     public File getPhotoFile(int index) {
-        File file = new File(photos.get(index));
+        File file = null;
 
-        Log.d("getphotofile: ", "index: "  + index);
-        Log.d("file", file.getAbsolutePath());
+        if(checkIfIndexExists(index)) {
+            file = new File(photos.get(index));
+            Log.d("getPhotoFile: ", "index: "  + index);
+        }
 
-        if (!file.exists()) {
-            Log.e("getPhotoFile", file.getAbsolutePath() + " does not exist");
+        if (file == null) {
+            Log.e("getPhotoFile", "unable to obtain file");
         }
 
         return file;

@@ -1,8 +1,14 @@
 package com.example.photogalleryapp.model;
 
-import java.util.ArrayList;
+import android.os.Build;
 
-public class Photos {
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+
+import java.util.ArrayList;
+import java.util.stream.Stream;
+
+public class Photos extends ArrayList<String> {
 
     ArrayList<String> photos;
 
@@ -10,19 +16,14 @@ public class Photos {
         photos = new ArrayList<>();
     }
 
-    public void addPhoto(String path) {
-        photos.add(path);
-    }
-
-    public void deletePhoto(int index) {
-        photos.remove(index);
-    }
-
-    public String getPhoto(int index) {
-        return photos.get(index);
-    }
-
     public ArrayList<String> getPhotosList() {
         return photos;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    @NonNull
+    @Override
+    public Stream<String> stream() {
+        return photos.stream();
     }
 }
