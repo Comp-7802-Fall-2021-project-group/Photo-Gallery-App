@@ -8,8 +8,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Environment;
-import android.provider.ContactsContract;
-import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -18,7 +16,6 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
 
-import com.example.photogalleryapp.R;
 import com.example.photogalleryapp.model.PhotoExifData;
 import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.util.Utilities;
