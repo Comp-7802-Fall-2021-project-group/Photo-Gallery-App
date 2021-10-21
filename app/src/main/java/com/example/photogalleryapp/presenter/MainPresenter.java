@@ -67,6 +67,8 @@ public class MainPresenter {
     /*
      * ALL NORMAL METHODS
      */
+
+    // Create a temporary image file to pass to camera intent
     public File createImageFile(Context context) throws IOException {
         // Create an image file name
         @SuppressLint("SimpleDateFormat") String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -100,8 +102,27 @@ public class MainPresenter {
         currentPhotoPath = path;
     }
 
+    // Return a count of photos, this is only used for the unit tests
     public static int getPhotoCount() {
         return photoCount;
+    }
+
+    public PhotoExifData getPhotoExifData(String path) {
+
+        try {
+            ExifInterface exif = new ExifInterface(path);
+            if(exif.getAttribute(TAG_IMAGE_DESCRIPTION) != null) {
+                photoExifData.setCaption(exif.getAttribute(TAG_IMAGE_DESCRIPTION));
+            }
+            if (exif.getLatLong() != null) {
+                photoExifData.setLatitude(exif.getLatLong()[0]);
+                photoExifData.setLongitude(exif.getLatLong()[1]);
+            }
+        } catch (NullPointerException | IOException e) {
+            Log.d("findPhotos", "Unable to retrieve EXIF data from file");
+        }
+        return photoExifData;
+
     }
 
     public File getPhotoFile(int index) {
@@ -209,24 +230,6 @@ public class MainPresenter {
             }
         }
         return photos;
-    }
-
-    public PhotoExifData getPhotoExifData(String path) {
-
-        try {
-            ExifInterface exif = new ExifInterface(path);
-            if(exif.getAttribute(TAG_IMAGE_DESCRIPTION) != null) {
-                photoExifData.setCaption(exif.getAttribute(TAG_IMAGE_DESCRIPTION));
-            }
-            if (exif.getLatLong() != null) {
-                photoExifData.setLatitude(exif.getLatLong()[0]);
-                photoExifData.setLongitude(exif.getLatLong()[1]);
-            }
-        } catch (NullPointerException | IOException e) {
-            Log.d("findPhotos", "Unable to retrieve EXIF data from file");
-        }
-        return photoExifData;
-
     }
 
     public void saveCaptionToExif(Context context, int index, String caption) {
