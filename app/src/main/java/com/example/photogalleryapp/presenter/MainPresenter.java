@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -290,6 +291,18 @@ public class MainPresenter {
         if(index < (photos.size() -1)) {
             this.index++;
         }
+    }
+
+    public Intent takePhotoIntent(Context context, Intent intent) {
+        File file = null;
+        try {
+            file = createImageFile(context);
+        } catch (IOException e) {
+            Log.e("takePhotoIntent", "unable to create a temporary file");
+        }
+        Uri uri = getPhotoFileUri(context, file);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+        return intent;
     }
 
     public void uploadPhotoIntent(Context context) {
