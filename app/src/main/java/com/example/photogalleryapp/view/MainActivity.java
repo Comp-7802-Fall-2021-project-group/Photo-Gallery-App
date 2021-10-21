@@ -23,6 +23,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.photogalleryapp.R;
 import com.example.photogalleryapp.model.PhotoExifData;
+import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.presenter.MainPresenter;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -41,17 +42,14 @@ public class MainActivity extends AppCompatActivity {
 
 
     private MainPresenter presenter = null;
-    private static ArrayList<String> photos = null;
-    private String currentPhotoPath;
+    private Photos photos = null;
     private int index = 0;
     private Location curLocation;
 
     private FusedLocationProviderClient fusedLocationClient;
 
     public static int getPhotoCount() {
-        if (photos != null)
-            return photos.size();
-        else return 0;
+        return MainPresenter.getPhotoCount();
     }
 
     /**
@@ -101,17 +99,6 @@ public class MainActivity extends AppCompatActivity {
     /**
      * ALL NORMAL METHODS ARE DECLARED HERE
      */
-
-
-    // Create a temporary placeholder image file, and pass it back to the Camera intent
-    private File createImageFile() throws IOException {
-        File image = presenter.createImageFile(this);
-
-        // Save a file: path for use with ACTION_VIEW intents
-        currentPhotoPath = image.getAbsolutePath();
-
-        return image;
-    }
 
     // Add location and tagging data to the new photo's exif metadata
     @SuppressLint("MissingPermission")
@@ -217,12 +204,12 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK) {
                 // If a new photo is saved successfully, add EXIF data and display the photo
                 // View will collect information and send back to presenter to save attributes
-                decorateNewPhotoWithExifData(currentPhotoPath);
+                decorateNewPhotoWithExifData(presenter.getCurrentPhotoPath());
 
                 // Refresh photo list and index
                 photos = presenter.findPhotos();
                 for (int i = 0; i < photos.size(); i++) {
-                    if (photos.get(i).equals(currentPhotoPath)) {
+                    if (photos.get(i).equals(presenter.getCurrentPhotoPath())) {
                         index = i;
                         break;
                     }
@@ -231,9 +218,9 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 // If photo is unavailable, delete the placeholder file from disk
                 // and reset the current photo path
-                File file = new File(currentPhotoPath);
+                File file = new File(presenter.getCurrentPhotoPath());
                 file.delete();
-                currentPhotoPath = "";
+                presenter.setCurrentPhotoPath("");
             }
         }
     }
@@ -261,7 +248,7 @@ public class MainActivity extends AppCompatActivity {
             // Create the File where the photo should go
             File photoFile = null;
             try {
-                photoFile = createImageFile();
+                photoFile = presenter.createImageFile(this);
             } catch (IOException ex) {
                 // Error occurred while creating the File
             }

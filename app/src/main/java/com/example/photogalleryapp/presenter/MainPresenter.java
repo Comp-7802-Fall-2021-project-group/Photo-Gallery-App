@@ -25,7 +25,6 @@ import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -35,7 +34,15 @@ public class MainPresenter {
 
     PhotoExifData photoExifData;
     Photos photos;
+    int index = 0;
+    String currentPhotoPath;
 
+    // Only used for unit tests
+    static int photoCount = 0;
+
+    /*
+     * ALL PERMISSION RELATED CONSTANTS
+     */
     private static final int PERMISSION_ALL = 99;
 
     String [] AUTHORITIES = {
@@ -54,18 +61,26 @@ public class MainPresenter {
         photos = new Photos();
         photos = findPhotos();
         photoExifData = new PhotoExifData();
+        photoCount = photos.size();
     }
 
+    /*
+     * ALL NORMAL METHODS
+     */
     public File createImageFile(Context context) throws IOException {
         // Create an image file name
         @SuppressLint("SimpleDateFormat") String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
 
-        return File.createTempFile(
+        File file = File.createTempFile(
                 imageFileName,  /* prefix */
                 ".jpg",         /* suffix */
                 storageDir      /* directory */
         );
+
+        currentPhotoPath = file.getAbsolutePath();
+
+        return file;
     }
 
     public boolean checkIfIndexExists(int index)  {
@@ -75,6 +90,18 @@ public class MainPresenter {
             Log.d("indexOutOfBounds", "this index is out of bounds " + index);
             return false;
         }
+    }
+
+    public String getCurrentPhotoPath() {
+        return currentPhotoPath;
+    }
+
+    public void setCurrentPhotoPath(String path) {
+        currentPhotoPath = path;
+    }
+
+    public static int getPhotoCount() {
+        return photoCount;
     }
 
     public File getPhotoFile(int index) {
