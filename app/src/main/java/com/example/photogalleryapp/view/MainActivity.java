@@ -43,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
 
     private MainPresenter presenter = null;
     private Photos photos = null;
-    private int index = 0;
     private Location curLocation;
 
     private FusedLocationProviderClient fusedLocationClient;
@@ -124,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
         if (photos.size() == 0) {
             displayPhoto(null);
         } else {
-            File file = presenter.getPhotoFile(index);
+            File file = presenter.getPhotoFileFromCurrentIndex();
             displayPhoto(file);
         }
     }
@@ -152,7 +151,6 @@ public class MainActivity extends AppCompatActivity {
 
         // if photos can't be found, display generic android logo
         if (file == null) {
-            index = 0;
             image.setImageResource(R.mipmap.ic_launcher);
             loadPhotoDataIntoView("", "", "", 0, 0);
         } else {
@@ -187,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
                     String longitude = data.getStringExtra("longitude");
 
                     // Refresh photo list
-                    index = 0;
+                    presenter.setIndex(0);
                     photos = presenter.findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
 
                     updatePhotoFromIndex();
@@ -208,12 +206,7 @@ public class MainActivity extends AppCompatActivity {
 
                 // Refresh photo list and index
                 photos = presenter.findPhotos();
-                for (int i = 0; i < photos.size(); i++) {
-                    if (photos.get(i).equals(presenter.getCurrentPhotoPath())) {
-                        index = i;
-                        break;
-                    }
-                }
+                presenter.refreshIndex();
                 updatePhotoFromIndex();
             } else {
                 // If photo is unavailable, delete the placeholder file from disk
@@ -263,22 +256,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void scrollLeft(View v) {
-        if(v.getId() == R.id.buttonLeft && presenter.checkIfIndexExists(index - 1)) {
-            index--;
-            File file = presenter.getPhotoFile(index);
+        if(v.getId() == R.id.buttonLeft) {
+            presenter.scrollLeft();
+            File file = presenter.getPhotoFileFromCurrentIndex();
             displayPhoto(file);
-        } else {
-            Log.d("scrollLeft", "different button clicked: " + v.toString());
         }
     }
 
     public void scrollRight(View v) {
-        if(v.getId() == R.id.buttonRight && presenter.checkIfIndexExists(index + 1)) {
-            index++;
-            File file = presenter.getPhotoFile(index);
+        if(v.getId() == R.id.buttonRight) {
+            presenter.scrollRight();
+            File file = presenter.getPhotoFileFromCurrentIndex();
             displayPhoto(file);
-        } else {
-            Log.d("scrollRight", "different button clicked: " + v.toString());
         }
     }
 
@@ -286,13 +275,13 @@ public class MainActivity extends AppCompatActivity {
     public void updateCaption(View view) {
         if (photos.size() > 0) {
             EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
-            presenter.saveCaptionToExif(this, index, etCaption.getText().toString());
+            presenter.saveCaptionToExif(this, etCaption.getText().toString());
             updatePhotoFromIndex();
         }
     }
 
     // Share photo to social media using Android Sharesheet
     public void uploadPhoto(View view) {
-        presenter.uploadPhotoIntent(this, index);
+        presenter.uploadPhotoIntent(this);
     }
 }

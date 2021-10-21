@@ -102,6 +102,14 @@ public class MainPresenter {
         currentPhotoPath = path;
     }
 
+    private int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int i) {
+        index = i;
+    }
+
     // Return a count of photos, this is only used for the unit tests
     public static int getPhotoCount() {
         return photoCount;
@@ -142,6 +150,10 @@ public class MainPresenter {
 
     public Uri getPhotoFileUri(Context activity, File file) {
         return FileProvider.getUriForFile(activity, AUTHORITIES[0], file);
+    }
+
+    public File getPhotoFileFromCurrentIndex() {
+       return getPhotoFile(index);
     }
 
    // Default find photos method to reload the list of pictures
@@ -232,9 +244,18 @@ public class MainPresenter {
         return photos;
     }
 
-    public void saveCaptionToExif(Context context, int index, String caption) {
+    public void refreshIndex() {
+        for (int i = 0; i < photos.size(); i++) {
+            if (photos.get(i).equals(getCurrentPhotoPath())) {
+                index = i;
+                break;
+            }
+        }
+    }
+
+    public void saveCaptionToExif(Context context, String caption) {
         try {
-            ExifInterface exif = new ExifInterface(photos.get(index));
+            ExifInterface exif = new ExifInterface(getPhotoFileFromCurrentIndex());
             exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
             exif.saveAttributes();
             Toast.makeText(context, "Caption saved", Toast.LENGTH_SHORT).show();
@@ -259,8 +280,20 @@ public class MainPresenter {
 
     }
 
-    public void uploadPhotoIntent(Context context, int index) {
-        File file = getPhotoFile(index);
+    public void scrollLeft() {
+        if(index > 0) {
+            this.index--;
+        }
+    }
+
+    public void scrollRight() {
+        if(index < (photos.size() -1)) {
+            this.index++;
+        }
+    }
+
+    public void uploadPhotoIntent(Context context) {
+        File file = getPhotoFileFromCurrentIndex();
         Uri uri = getPhotoFileUri(context, file);
         String filename = file.getName();
 
