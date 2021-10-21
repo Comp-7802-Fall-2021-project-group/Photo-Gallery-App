@@ -10,20 +10,13 @@ import java.util.stream.Stream;
 
 public class Photos extends ArrayList<String> {
 
-    ArrayList<String> photos;
+    ArrayList<Photo> photos;
 
     public Photos() {
         photos = new ArrayList<>();
     }
 
-    public ArrayList<String> getPhotosList() {
+    public ArrayList<Photo> getPhotosList() {
         return photos;
-    }
-
-    @RequiresApi(api = Build.VERSION_CODES.N)
-    @NonNull
-    @Override
-    public Stream<String> stream() {
-        return photos.stream();
     }
 }

@@ -77,10 +77,6 @@ public class MainPresenter {
         }
     }
 
-    public ArrayList<String> getPhotosList() {
-        return photos.getPhotosList();
-    }
-
     public File getPhotoFile(int index) {
         File file = null;
 
