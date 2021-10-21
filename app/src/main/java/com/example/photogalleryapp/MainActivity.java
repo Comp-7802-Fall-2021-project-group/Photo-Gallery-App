@@ -224,6 +224,20 @@ public class MainActivity extends AppCompatActivity {
         return Math.sqrt(distance);
     }
 
+    public ArrayList<String> loadAllPhotos() {
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), "/Android/data/com.example.photogalleryapp/files/Pictures");
+        File[] fList = file.listFiles();
+        ArrayList<String> photos = new ArrayList<>();
+
+        if(fList.length > 0) {
+            // stream
+            photos.add("");
+            return photos;
+        }
+
+        return photos;
+    }
+
 
     // Default find photos method to reload the list of pictures
     public ArrayList<String> findPhotos() {
