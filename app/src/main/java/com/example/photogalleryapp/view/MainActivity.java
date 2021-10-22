@@ -7,7 +7,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.location.Location;
-import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -23,14 +22,13 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.photogalleryapp.R;
 import com.example.photogalleryapp.model.PhotoExifData;
+import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.presenter.MainPresenter;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.CancellationTokenSource;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
@@ -41,17 +39,13 @@ public class MainActivity extends AppCompatActivity {
 
 
     private MainPresenter presenter = null;
-    private static ArrayList<String> photos = null;
-    private String currentPhotoPath;
-    private int index = 0;
+    private Photos photos = null;
     private Location curLocation;
 
     private FusedLocationProviderClient fusedLocationClient;
 
     public static int getPhotoCount() {
-        if (photos != null)
-            return photos.size();
-        else return 0;
+        return MainPresenter.getPhotoCount();
     }
 
     /**
@@ -102,17 +96,6 @@ public class MainActivity extends AppCompatActivity {
      * ALL NORMAL METHODS ARE DECLARED HERE
      */
 
-
-    // Create a temporary placeholder image file, and pass it back to the Camera intent
-    private File createImageFile() throws IOException {
-        File image = presenter.createImageFile(this);
-
-        // Save a file: path for use with ACTION_VIEW intents
-        currentPhotoPath = image.getAbsolutePath();
-
-        return image;
-    }
-
     // Add location and tagging data to the new photo's exif metadata
     @SuppressLint("MissingPermission")
     private void decorateNewPhotoWithExifData(String currentPhotoPath) {
@@ -137,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
         if (photos.size() == 0) {
             displayPhoto(null);
         } else {
-            File file = presenter.getPhotoFile(index);
+            File file = presenter.getPhotoFileFromCurrentIndex();
             displayPhoto(file);
         }
     }
@@ -165,7 +148,6 @@ public class MainActivity extends AppCompatActivity {
 
         // if photos can't be found, display generic android logo
         if (file == null) {
-            index = 0;
             image.setImageResource(R.mipmap.ic_launcher);
             loadPhotoDataIntoView("", "", "", 0, 0);
         } else {
@@ -200,7 +182,7 @@ public class MainActivity extends AppCompatActivity {
                     String longitude = data.getStringExtra("longitude");
 
                     // Refresh photo list
-                    index = 0;
+                    presenter.setIndex(0);
                     photos = presenter.findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
 
                     updatePhotoFromIndex();
@@ -217,23 +199,18 @@ public class MainActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK) {
                 // If a new photo is saved successfully, add EXIF data and display the photo
                 // View will collect information and send back to presenter to save attributes
-                decorateNewPhotoWithExifData(currentPhotoPath);
+                decorateNewPhotoWithExifData(presenter.getCurrentPhotoPath());
 
                 // Refresh photo list and index
                 photos = presenter.findPhotos();
-                for (int i = 0; i < photos.size(); i++) {
-                    if (photos.get(i).equals(currentPhotoPath)) {
-                        index = i;
-                        break;
-                    }
-                }
+                presenter.refreshIndex();
                 updatePhotoFromIndex();
             } else {
                 // If photo is unavailable, delete the placeholder file from disk
                 // and reset the current photo path
-                File file = new File(currentPhotoPath);
+                File file = new File(presenter.getCurrentPhotoPath());
                 file.delete();
-                currentPhotoPath = "";
+                presenter.setCurrentPhotoPath("");
             }
         }
     }
@@ -259,39 +236,24 @@ public class MainActivity extends AppCompatActivity {
         // Ensure that there's a camera activity to handle the intent
         if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
             // Create the File where the photo should go
-            File photoFile = null;
-            try {
-                photoFile = createImageFile();
-            } catch (IOException ex) {
-                // Error occurred while creating the File
-            }
-            // Continue only if the File was successfully created
-            if (photoFile != null) {
-                Uri uri = presenter.getPhotoFileUri(this, photoFile);
-                takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
-                startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
-            }
+            takePictureIntent = presenter.takePhotoIntent(this, takePictureIntent);
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
         }
-
     }
 
     public void scrollLeft(View v) {
-        if(v.getId() == R.id.buttonLeft && presenter.checkIfIndexExists(index - 1)) {
-            index--;
-            File file = presenter.getPhotoFile(index);
+        if(v.getId() == R.id.buttonLeft) {
+            presenter.scrollLeft();
+            File file = presenter.getPhotoFileFromCurrentIndex();
             displayPhoto(file);
-        } else {
-            Log.d("scrollLeft", "different button clicked: " + v.toString());
         }
     }
 
     public void scrollRight(View v) {
-        if(v.getId() == R.id.buttonRight && presenter.checkIfIndexExists(index + 1)) {
-            index++;
-            File file = presenter.getPhotoFile(index);
+        if(v.getId() == R.id.buttonRight) {
+            presenter.scrollRight();
+            File file = presenter.getPhotoFileFromCurrentIndex();
             displayPhoto(file);
-        } else {
-            Log.d("scrollRight", "different button clicked: " + v.toString());
         }
     }
 
@@ -299,13 +261,13 @@ public class MainActivity extends AppCompatActivity {
     public void updateCaption(View view) {
         if (photos.size() > 0) {
             EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
-            presenter.saveCaptionToExif(this, index, etCaption.getText().toString());
+            presenter.saveCaptionToExif(this, etCaption.getText().toString());
             updatePhotoFromIndex();
         }
     }
 
     // Share photo to social media using Android Sharesheet
     public void uploadPhoto(View view) {
-        presenter.uploadPhotoIntent(this, index);
+        presenter.uploadPhotoIntent(this);
     }
 }

@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Environment;
+import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -25,7 +26,6 @@ import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -35,7 +35,15 @@ public class MainPresenter {
 
     PhotoExifData photoExifData;
     Photos photos;
+    int index = 0;
+    String currentPhotoPath;
 
+    // Only used for unit tests
+    static int photoCount = 0;
+
+    /*
+     * ALL PERMISSION RELATED CONSTANTS
+     */
     private static final int PERMISSION_ALL = 99;
 
     String [] AUTHORITIES = {
@@ -54,18 +62,28 @@ public class MainPresenter {
         photos = new Photos();
         photos = findPhotos();
         photoExifData = new PhotoExifData();
+        photoCount = photos.size();
     }
 
+    /*
+     * ALL NORMAL METHODS
+     */
+
+    // Create a temporary image file to pass to camera intent
     public File createImageFile(Context context) throws IOException {
         // Create an image file name
         @SuppressLint("SimpleDateFormat") String imageFileName = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
 
-        return File.createTempFile(
+        File file = File.createTempFile(
                 imageFileName,  /* prefix */
                 ".jpg",         /* suffix */
                 storageDir      /* directory */
         );
+
+        currentPhotoPath = file.getAbsolutePath();
+
+        return file;
     }
 
     public boolean checkIfIndexExists(int index)  {
@@ -77,8 +95,43 @@ public class MainPresenter {
         }
     }
 
-    public ArrayList<String> getPhotosList() {
-        return photos.getPhotosList();
+    public String getCurrentPhotoPath() {
+        return currentPhotoPath;
+    }
+
+    public void setCurrentPhotoPath(String path) {
+        currentPhotoPath = path;
+    }
+
+    private int getIndex() {
+        return index;
+    }
+
+    public void setIndex(int i) {
+        index = i;
+    }
+
+    // Return a count of photos, this is only used for the unit tests
+    public static int getPhotoCount() {
+        return photoCount;
+    }
+
+    public PhotoExifData getPhotoExifData(String path) {
+
+        try {
+            ExifInterface exif = new ExifInterface(path);
+            if(exif.getAttribute(TAG_IMAGE_DESCRIPTION) != null) {
+                photoExifData.setCaption(exif.getAttribute(TAG_IMAGE_DESCRIPTION));
+            }
+            if (exif.getLatLong() != null) {
+                photoExifData.setLatitude(exif.getLatLong()[0]);
+                photoExifData.setLongitude(exif.getLatLong()[1]);
+            }
+        } catch (NullPointerException | IOException e) {
+            Log.d("findPhotos", "Unable to retrieve EXIF data from file");
+        }
+        return photoExifData;
+
     }
 
     public File getPhotoFile(int index) {
@@ -98,6 +151,10 @@ public class MainPresenter {
 
     public Uri getPhotoFileUri(Context activity, File file) {
         return FileProvider.getUriForFile(activity, AUTHORITIES[0], file);
+    }
+
+    public File getPhotoFileFromCurrentIndex() {
+       return getPhotoFile(index);
     }
 
    // Default find photos method to reload the list of pictures
@@ -188,27 +245,18 @@ public class MainPresenter {
         return photos;
     }
 
-    public PhotoExifData getPhotoExifData(String path) {
-
-        try {
-            ExifInterface exif = new ExifInterface(path);
-            if(exif.getAttribute(TAG_IMAGE_DESCRIPTION) != null) {
-                photoExifData.setCaption(exif.getAttribute(TAG_IMAGE_DESCRIPTION));
+    public void refreshIndex() {
+        for (int i = 0; i < photos.size(); i++) {
+            if (photos.get(i).equals(getCurrentPhotoPath())) {
+                index = i;
+                break;
             }
-            if (exif.getLatLong() != null) {
-                photoExifData.setLatitude(exif.getLatLong()[0]);
-                photoExifData.setLongitude(exif.getLatLong()[1]);
-            }
-        } catch (NullPointerException | IOException e) {
-            Log.d("findPhotos", "Unable to retrieve EXIF data from file");
         }
-        return photoExifData;
-
     }
 
-    public void saveCaptionToExif(Context context, int index, String caption) {
+    public void saveCaptionToExif(Context context, String caption) {
         try {
-            ExifInterface exif = new ExifInterface(photos.get(index));
+            ExifInterface exif = new ExifInterface(getPhotoFileFromCurrentIndex());
             exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
             exif.saveAttributes();
             Toast.makeText(context, "Caption saved", Toast.LENGTH_SHORT).show();
@@ -233,8 +281,32 @@ public class MainPresenter {
 
     }
 
-    public void uploadPhotoIntent(Context context, int index) {
-        File file = getPhotoFile(index);
+    public void scrollLeft() {
+        if(index > 0) {
+            this.index--;
+        }
+    }
+
+    public void scrollRight() {
+        if(index < (photos.size() -1)) {
+            this.index++;
+        }
+    }
+
+    public Intent takePhotoIntent(Context context, Intent intent) {
+        File file = null;
+        try {
+            file = createImageFile(context);
+        } catch (IOException e) {
+            Log.e("takePhotoIntent", "unable to create a temporary file");
+        }
+        Uri uri = getPhotoFileUri(context, file);
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, uri);
+        return intent;
+    }
+
+    public void uploadPhotoIntent(Context context) {
+        File file = getPhotoFileFromCurrentIndex();
         Uri uri = getPhotoFileUri(context, file);
         String filename = file.getName();
 

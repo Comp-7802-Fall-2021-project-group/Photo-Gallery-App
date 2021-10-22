@@ -13,6 +13,12 @@ public class PhotoExifData {
 
     }
 
+    public PhotoExifData(String cap, double lat, double lon) {
+        caption = cap;
+        latitude = lat;
+        longitude = lon;
+    }
+
     public String getCaption() {
         return caption;
     }
