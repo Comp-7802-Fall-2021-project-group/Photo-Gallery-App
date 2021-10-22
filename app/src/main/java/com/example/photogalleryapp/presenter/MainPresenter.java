@@ -33,13 +33,24 @@ import java.util.Locale;
 
 public class MainPresenter {
 
-    PhotoExifData photoExifData;
-    Photos photos;
+    private PhotoExifData photoExifData;
+    private Photos photos;
     int index = 0;
     String currentPhotoPath;
 
     // Only used for unit tests
     static int photoCount = 0;
+
+    /*
+     * Getter and setter
+     */
+    public Photos getPhotos() {
+        return photos;
+    }
+
+    public void setPhotos(Photos photos) {
+        this.photos = photos;
+    }
 
     /*
      * ALL PERMISSION RELATED CONSTANTS
@@ -60,8 +71,9 @@ public class MainPresenter {
 
     public MainPresenter() {
         photos = new Photos();
-        photos = findPhotos();
         photoExifData = new PhotoExifData();
+
+        findPhotos();
         photoCount = photos.size();
     }
 
@@ -154,15 +166,19 @@ public class MainPresenter {
     }
 
     public File getPhotoFileFromCurrentIndex() {
-       return getPhotoFile(index);
+        if (photos.size() == 0)
+            return null;
+        else
+            return getPhotoFile(index);
     }
 
-   // Default find photos method to reload the list of pictures
-    public Photos findPhotos() {
-        return findPhotos("", "", "", "", "");
+    // Default find photos method to reload the list of pictures
+    public void findPhotos() {
+        findPhotos("", "", "", "", "");
     }
+
     // Overloading the default find photo methods to reload picture based on search criterias
-    public Photos findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
+    public void findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
         // create start date and end date if exist
         SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd");
         Date start = null, end = null;
@@ -242,7 +258,8 @@ public class MainPresenter {
                 photos.add(f.getPath());
             }
         }
-        return photos;
+        setPhotos(photos);
+        refreshIndex();
     }
 
     public void refreshIndex() {
@@ -255,13 +272,15 @@ public class MainPresenter {
     }
 
     public void saveCaptionToExif(Context context, String caption) {
-        try {
-            ExifInterface exif = new ExifInterface(getPhotoFileFromCurrentIndex());
-            exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
-            exif.saveAttributes();
-            Toast.makeText(context, "Caption saved", Toast.LENGTH_SHORT).show();
-        } catch (IOException e) {
-            Log.d("saveCaptionToExif", "Unable to save EXIF data from the file");
+        if (photos.size() > 0) {
+            try {
+                ExifInterface exif = new ExifInterface(getPhotoFileFromCurrentIndex());
+                exif.setAttribute(TAG_IMAGE_DESCRIPTION, caption);
+                exif.saveAttributes();
+                Toast.makeText(context, "Caption saved", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) {
+                Log.d("saveCaptionToExif", "Unable to save EXIF data from the file");
+            }
         }
     }
 

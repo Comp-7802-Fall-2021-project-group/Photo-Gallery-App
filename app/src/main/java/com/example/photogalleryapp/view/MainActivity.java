@@ -22,7 +22,6 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.photogalleryapp.R;
 import com.example.photogalleryapp.model.PhotoExifData;
-import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.presenter.MainPresenter;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
@@ -39,7 +38,6 @@ public class MainActivity extends AppCompatActivity {
 
 
     private MainPresenter presenter = null;
-    private Photos photos = null;
     private Location curLocation;
 
     private FusedLocationProviderClient fusedLocationClient;
@@ -61,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         presenter.checkGrantPermissions(MainActivity.this);
 
-        photos = presenter.findPhotos();
+        presenter.findPhotos();
         updatePhotoFromIndex();
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -117,12 +115,8 @@ public class MainActivity extends AppCompatActivity {
 
     // Auto update photo using the current index
     private void updatePhotoFromIndex() {
-        if (photos.size() == 0) {
-            displayPhoto(null);
-        } else {
-            File file = presenter.getPhotoFileFromCurrentIndex();
-            displayPhoto(file);
-        }
+        File file = presenter.getPhotoFileFromCurrentIndex();
+        displayPhoto(file);
     }
 
     // Update photo UI based based on given data from displayPhoto()
@@ -183,7 +177,7 @@ public class MainActivity extends AppCompatActivity {
 
                     // Refresh photo list
                     presenter.setIndex(0);
-                    photos = presenter.findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
+                    presenter.findPhotos(startDate, endDate, editKeywordSearch, latitude, longitude);
 
                     updatePhotoFromIndex();
                 }
@@ -202,8 +196,7 @@ public class MainActivity extends AppCompatActivity {
                 decorateNewPhotoWithExifData(presenter.getCurrentPhotoPath());
 
                 // Refresh photo list and index
-                photos = presenter.findPhotos();
-                presenter.refreshIndex();
+                presenter.findPhotos();
                 updatePhotoFromIndex();
             } else {
                 // If photo is unavailable, delete the placeholder file from disk
@@ -259,11 +252,9 @@ public class MainActivity extends AppCompatActivity {
 
     // Start to update the current picture caption, then reload the picture data
     public void updateCaption(View view) {
-        if (photos.size() > 0) {
-            EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
-            presenter.saveCaptionToExif(this, etCaption.getText().toString());
-            updatePhotoFromIndex();
-        }
+        EditText etCaption = (EditText) findViewById(R.id.editTextCaption);
+        presenter.saveCaptionToExif(this, etCaption.getText().toString());
+        updatePhotoFromIndex();
     }
 
     // Share photo to social media using Android Sharesheet
