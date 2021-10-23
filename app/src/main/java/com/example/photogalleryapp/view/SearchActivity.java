@@ -1,4 +1,4 @@
-package com.example.photogalleryapp;
+package com.example.photogalleryapp.view;
 
 import android.app.DatePickerDialog;
 import android.content.Intent;
@@ -9,14 +9,20 @@ import android.widget.EditText;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.photogalleryapp.R;
+import com.example.photogalleryapp.presenter.SearchPresenter;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
 
 public class SearchActivity extends AppCompatActivity {
     // Public vars
     EditText startDate, endDate, editKeywordSearch, editLat, editLong;
+
+    SearchPresenter presenter;
 
     final Calendar myCalendar = Calendar.getInstance();
 
@@ -26,13 +32,10 @@ public class SearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_search);
 
-        // Create default datetime string values, appears on the UI
-        Calendar calendar = Calendar.getInstance();
-        DateFormat format = new SimpleDateFormat("yyyyMMdd");
-        String today = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(calendar.getTime());
+        presenter = new SearchPresenter();
 
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        String tomorrow = new SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(calendar.getTime());
+        // Create default datetime string values, appears on the UI
+        ArrayList<String> dateStrings = presenter.createDefaultDateTimeStrings();
 
         startDate = (EditText) findViewById(R.id.startDate);
         endDate = (EditText) findViewById(R.id.endDate);
@@ -40,8 +43,8 @@ public class SearchActivity extends AppCompatActivity {
         editLat = (EditText) findViewById(R.id.latitude);
         editLong = (EditText) findViewById(R.id.longitude);
 
-        // startDate.setText(today);
-        // endDate.setText(tomorrow);
+        // startDate.setText(dateStrings.get(0));
+        // endDate.setText(dateStrings.get(1));
 
         DatePickerDialog.OnDateSetListener startDatePicker = new DatePickerDialog.OnDateSetListener() {
             @Override
@@ -94,30 +97,20 @@ public class SearchActivity extends AppCompatActivity {
 
 
     public void submitButton(View view) {
-        boolean validation = validateSearchInput();
+        boolean validation = presenter.validateSearchInput();
 
         if (validation) {
-            // create a new intent, retrieve the search data and
-            // return value to MainActivity (GalleryActivity)
 
-            Intent intent = new Intent();
-
-            // Set intent extra data with value from the text input
-            intent.putExtra("startDate", startDate.getText().toString());
-            intent.putExtra("endDate", endDate.getText().toString());
-            intent.putExtra("editKeywordSearch", editKeywordSearch.getText().toString());
-            intent.putExtra("latitude", editLat.getText().toString());
-            intent.putExtra("longitude", editLong.getText().toString());
+            Intent intent = presenter.submitButtonIntent(startDate.getText().toString(),
+                    endDate.getText().toString(),
+                    editKeywordSearch.getText().toString(),
+                    editLat.getText().toString(),
+                    editLong.getText().toString());
 
             // Return ok signal
             setResult(RESULT_OK, intent);
             finish();
         }
-    }
-
-    private boolean validateSearchInput() {
-        // TODO: Basic validation
-        return true;
     }
 
     // Closes the search view and takes the user back to parent view (MainActivity)
