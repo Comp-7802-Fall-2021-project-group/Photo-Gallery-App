@@ -7,12 +7,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
@@ -177,6 +179,17 @@ public class MainPresenter {
         findPhotos("", "", "", "", "");
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
+
+    public Photos loadAllPhotos() {
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), PICTURES_DIRECTORY);
+        File[] fList = file.listFiles();
+        Photos photos = new Photos();
+        if(fList.length > 0) {
+            Arrays.stream(fList).forEach(f -> photos.add(f.getPath()));
+        }
+        return photos;
+    }
     // Overloading the default find photo methods to reload picture based on search criterias
     public void findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
         // create start date and end date if exist
