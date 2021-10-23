@@ -174,22 +174,23 @@ public class MainPresenter {
             return getPhotoFile(index);
     }
 
-    // Default find photos method to reload the list of pictures
-    public void findPhotos() {
-        findPhotos("", "", "", "", "");
-    }
-
     @RequiresApi(api = Build.VERSION_CODES.N)
-
-    public Photos loadAllPhotos() {
+    public void loadAllPhotos() {
         File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), PICTURES_DIRECTORY);
         File[] fList = file.listFiles();
         Photos photos = new Photos();
         if(fList.length > 0) {
             Arrays.stream(fList).forEach(f -> photos.add(f.getPath()));
         }
-        return photos;
+        setPhotos(photos);
+        refreshIndex();
     }
+
+    // Default find photos method to reload the list of pictures
+    public void findPhotos() {
+        findPhotos("", "", "", "", "");
+    }
+
     // Overloading the default find photo methods to reload picture based on search criterias
     public void findPhotos(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
         // create start date and end date if exist
