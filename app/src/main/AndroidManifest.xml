@@ -19,15 +19,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.PhotoGalleryApp">
-        <activity
-            android:name=".GalleryActivity"
-            android:exported="true" />
-        <activity
-            android:name=".SearchActivity"
+       <activity
+            android:name=".view.SearchActivity"
             android:exported="true"
-            android:parentActivityName=".MainActivity" />
+            android:parentActivityName=".view.MainActivity" />
         <activity
-            android:name=".MainActivity"
+            android:name=".view.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -48,7 +45,7 @@
 
         <service
             android:foregroundServiceType="location"
-            android:name="com.example.photogalleryapp.MainActivity" />
+            android:name="com.example.photogalleryapp.view.MainActivity" />
 
     </application>
 
