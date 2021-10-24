@@ -19,11 +19,11 @@ public class Photo {
         return exifData;
     }
 
-   public void setPath(String filePath) {
+    public void setPath(String filePath) {
         path = filePath;
    }
 
-   public void setExifData(PhotoExifData data) {
+    public void setExifData(PhotoExifData data) {
         exifData = data;
    }
 }
