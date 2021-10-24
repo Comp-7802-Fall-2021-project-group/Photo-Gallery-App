@@ -19,6 +19,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.FileProvider;
 import androidx.exifinterface.media.ExifInterface;
 
+import com.example.photogalleryapp.model.Photo;
 import com.example.photogalleryapp.model.PhotoExifData;
 import com.example.photogalleryapp.model.Photos;
 import com.example.photogalleryapp.util.Utilities;
@@ -28,10 +29,13 @@ import java.io.File;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class MainPresenter {
 
@@ -74,7 +78,6 @@ public class MainPresenter {
     public MainPresenter() {
         photos = new Photos();
         photoExifData = new PhotoExifData();
-
         findPhotos();
         photoCount = photos.size();
     }
@@ -184,6 +187,97 @@ public class MainPresenter {
         }
         setPhotos(photos);
         refreshIndex();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void findPhotosFP(String startDate, String endDate, String editKeywordSearch, String latitude, String longitude) {
+
+        if(startDate.isEmpty() && endDate.isEmpty() && editKeywordSearch.isEmpty() && latitude.isEmpty() && longitude.isEmpty()) {
+           loadAllPhotos();
+           return;
+       }
+
+        File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath(), PICTURES_DIRECTORY);
+        File[] files = path.listFiles();
+        Photos photos = makePhotos(files);
+        List<Photo> foundPhotos = photoFilter(photos, startDate, endDate, latitude, longitude, editKeywordSearch);
+        setPhotos(new Photos(foundPhotos));
+        refreshIndex();
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public List<Photo> photoFilter(Photos photos, String startDate, String endDate, String latitude, String longitude, String editKeywordSearch) {
+        final Date searchStartDate = toSearchDate(startDate);
+        final Date searchEndDate = toSearchDate(endDate);
+        final double searchLatitude = toSearchCoordinate(latitude);
+        final double searchLongitude = toSearchCoordinate(longitude);
+        final List<String> listKeyword = Arrays.asList(editKeywordSearch.split("\\s+"));
+
+        return photos.getPhotosList().stream().filter(p -> {
+            PhotoExifData exifData = p.getPhotoExifData();
+            Date photoTakenDate = exifData.getLastModified();
+            if(!startDate.isEmpty() && !endDate.isEmpty()) {
+                return photoTakenDate.after(searchStartDate) && photoTakenDate.before(searchEndDate);
+            } else if(startDate.isEmpty() && !endDate.isEmpty()) {
+                return photoTakenDate.before(searchEndDate);
+            } else if (!startDate.isEmpty()) {
+                return photoTakenDate.after(searchStartDate);
+            } else {
+                return false;
+            }
+        }).filter(p -> {
+            PhotoExifData exifData = p.getPhotoExifData();
+            double photoLat = exifData.getLatitude();
+            double photoLng = exifData.getLongitude();
+            double distance = Utilities.CalculateDistance(photoLat, searchLatitude, photoLng, searchLongitude, 0.0, 0.0);
+            return distance < 20;
+        }).filter(p -> {
+            PhotoExifData exifData = p.getPhotoExifData();
+            String caption = exifData.getCaption();
+            return listKeyword.contains(caption);
+        }).collect(Collectors.toList());
+    }
+
+    public Date toSearchDate(String date) {
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyyMMdd", Locale.CANADA);
+        try{
+            return formatter.parse(date);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public double toSearchCoordinate(String coord) {
+        return  Double.parseDouble(coord);
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public Photos makePhotos(File[] files) {
+        List<Photo> l = Arrays.stream(files).map(this::toPhoto).collect(Collectors.toList());
+        return new Photos(l);
+    }
+
+    public Photo toPhoto(File file) {
+        PhotoExifData exifData = setExifData(file);
+        return new Photo(exifData, file.getPath());
+    }
+
+    public PhotoExifData setExifData(File file) {
+        try {
+            PhotoExifData exifData = new PhotoExifData();
+            Date lastModified = new Date(file.lastModified());
+            exifData.setLastModified(lastModified);
+            ExifInterface iExif = new ExifInterface(file);
+            String caption = iExif.getAttribute(TAG_IMAGE_DESCRIPTION);
+            double lat = iExif.getLatLong()[0];
+            double lng = iExif.getLatLong()[1];
+            exifData.setCaption(caption);
+            exifData.setLatitude(lat);
+            exifData.setLongitude(lng);
+            return exifData;
+        } catch(IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // Default find photos method to reload the list of pictures
