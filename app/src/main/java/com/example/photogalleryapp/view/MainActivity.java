@@ -7,6 +7,7 @@ import android.app.Activity;
 import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.MediaStore;
 import android.util.Log;
@@ -18,6 +19,7 @@ import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.photogalleryapp.R;
@@ -49,6 +51,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * OVERRIDE METHODS
      */
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @SuppressLint("MissingPermission")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +62,8 @@ public class MainActivity extends AppCompatActivity {
 
         presenter.checkGrantPermissions(MainActivity.this);
 
-        presenter.findPhotos();
+//        presenter.findPhotos();
+        presenter.loadAllPhotos();
         updatePhotoFromIndex();
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
@@ -184,6 +188,7 @@ public class MainActivity extends AppCompatActivity {
             });
 
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -196,7 +201,8 @@ public class MainActivity extends AppCompatActivity {
                 decorateNewPhotoWithExifData(presenter.getCurrentPhotoPath());
 
                 // Refresh photo list and index
-                presenter.findPhotos();
+//                presenter.findPhotos();
+                presenter.loadAllPhotos();
                 updatePhotoFromIndex();
             } else {
                 // If photo is unavailable, delete the placeholder file from disk
